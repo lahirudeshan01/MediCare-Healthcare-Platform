@@ -1,0 +1,409 @@
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft,
+  Star,
+  ShieldCheck,
+  Video,
+  MapPin,
+  CheckCircle } from
+'lucide-react';
+import { GlassCard } from '../components/ui/GlassCard';
+import { AppleButton } from '../components/ui/AppleButton';
+import { StatusBadge } from '../components/ui/StatusBadge';
+const TIME_SLOTS = [
+'9:00 AM',
+'9:30 AM',
+'10:00 AM',
+'10:30 AM',
+'11:00 AM',
+'2:00 PM',
+'2:30 PM',
+'3:00 PM',
+'3:30 PM',
+'4:00 PM'];
+
+const DAYS = [
+{
+  day: 'Mon',
+  date: '24'
+},
+{
+  day: 'Tue',
+  date: '25'
+},
+{
+  day: 'Wed',
+  date: '26'
+},
+{
+  day: 'Thu',
+  date: '27'
+},
+{
+  day: 'Fri',
+  date: '28'
+},
+{
+  day: 'Sat',
+  date: '29'
+},
+{
+  day: 'Sun',
+  date: '30'
+}];
+
+export function DoctorProfile() {
+  const navigate = useNavigate();
+  const [selectedDate, setSelectedDate] = useState('24');
+  const [selectedTime, setSelectedTime] = useState('3:00 PM');
+  const [consultType, setConsultType] = useState('video');
+  const [showModal, setShowModal] = useState(false);
+  const handleBook = () => {
+    setShowModal(true);
+  };
+  return (
+    <div className="min-h-screen bg-[#F5F5F7] font-['Inter',system-ui,sans-serif] text-[#1D1D1F] pb-32 md:pb-8">
+      {/* Header Nav */}
+      <header className="bg-white/80 backdrop-blur-xl border-b border-[#D2D2D7]/50 sticky top-0 z-40">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-4">
+          <button
+            onClick={() => navigate('/doctors')}
+            className="p-2 -ml-2 rounded-full hover:bg-[#F5F5F7] transition-colors">
+            
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <h1 className="text-xl font-semibold tracking-tight">
+            Doctor Profile
+          </h1>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+        {/* Doctor Header */}
+        <GlassCard className="p-6 sm:p-8">
+          <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start text-center sm:text-left">
+            <div className="w-24 h-24 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-3xl shrink-0 shadow-sm">
+              KP
+            </div>
+            <div className="flex-1">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
+                <h1 className="text-3xl font-bold tracking-tight">
+                  Dr. Kumara Perera
+                </h1>
+                <div className="flex items-center justify-center gap-2">
+                  <StatusBadge status="online" />
+                  <span className="inline-flex items-center text-[#0071E3] text-sm font-medium bg-[#0071E3]/10 px-2.5 py-0.5 rounded-full">
+                    <ShieldCheck className="w-4 h-4 mr-1" /> Verified Doctor
+                  </span>
+                </div>
+              </div>
+              <p className="text-lg text-[#86868B] mb-4">
+                Cardiologist • Nawaloka Hospital
+              </p>
+
+              <div className="flex flex-wrap justify-center sm:justify-start gap-6 sm:gap-8">
+                <div>
+                  <p className="text-sm text-[#86868B] mb-1">Patients</p>
+                  <p className="font-semibold text-lg">1,200+</p>
+                </div>
+                <div>
+                  <p className="text-sm text-[#86868B] mb-1">Experience</p>
+                  <p className="font-semibold text-lg">15 yrs</p>
+                </div>
+                <div>
+                  <p className="text-sm text-[#86868B] mb-1">Rating</p>
+                  <div className="flex items-center font-semibold text-lg">
+                    4.9{' '}
+                    <Star className="w-5 h-5 text-[#FF9F0A] fill-[#FF9F0A] ml-1" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* About Section */}
+        <section>
+          <h2 className="text-xl font-semibold mb-4">About</h2>
+          <GlassCard className="p-6">
+            <p className="text-[#1D1D1F] leading-relaxed mb-6">
+              Dr. Kumara Perera is a board-certified cardiologist with over 15
+              years of experience in diagnosing and treating cardiovascular
+              diseases. He specializes in preventive cardiology,
+              echocardiography, and heart failure management.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-[#86868B] uppercase tracking-wider mb-2">
+                  Qualifications
+                </h3>
+                <p className="font-medium">
+                  MBBS (University of Colombo), MD Cardiology (University of
+                  Kelaniya), MRCP (UK)
+                </p>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[#86868B] uppercase tracking-wider mb-2">
+                  Languages
+                </h3>
+                <p className="font-medium">Sinhala, Tamil, English</p>
+              </div>
+            </div>
+          </GlassCard>
+        </section>
+
+        {/* Availability & Booking */}
+        <section>
+          <h2 className="text-xl font-semibold mb-4">Availability</h2>
+          <GlassCard className="p-6">
+            {/* Date Selector */}
+            <div className="flex overflow-x-auto gap-3 pb-4 no-scrollbar mb-6">
+              {DAYS.map((d) =>
+              <button
+                key={d.date}
+                onClick={() => setSelectedDate(d.date)}
+                className={`flex flex-col items-center justify-center min-w-[4rem] py-3 rounded-2xl transition-colors border ${selectedDate === d.date ? 'bg-[#0071E3] text-white border-[#0071E3]' : 'bg-white text-[#1D1D1F] border-[#D2D2D7]/50 hover:border-[#0071E3]'}`}>
+                
+                  <span
+                  className={`text-xs font-medium mb-1 ${selectedDate === d.date ? 'text-white/80' : 'text-[#86868B]'}`}>
+                  
+                    {d.day}
+                  </span>
+                  <span className="text-lg font-semibold">{d.date}</span>
+                </button>
+              )}
+            </div>
+
+            {/* Time Slots */}
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mb-8">
+              {TIME_SLOTS.map((time, i) => {
+                const isUnavailable = i === 2 || i === 5; // Mock unavailable slots
+                return (
+                  <button
+                    key={time}
+                    disabled={isUnavailable}
+                    onClick={() => setSelectedTime(time)}
+                    className={`py-2.5 rounded-xl text-sm font-medium transition-colors border ${isUnavailable ? 'bg-[#F5F5F7] text-[#86868B] border-transparent opacity-50 cursor-not-allowed' : selectedTime === time ? 'bg-[#0071E3] text-white border-[#0071E3]' : 'bg-white text-[#1D1D1F] border-[#D2D2D7]/50 hover:border-[#0071E3]'}`}>
+                    
+                    {time}
+                  </button>);
+
+              })}
+            </div>
+
+            {/* Consultation Type */}
+            <h3 className="text-sm font-semibold text-[#86868B] uppercase tracking-wider mb-3">
+              Consultation Type
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                onClick={() => setConsultType('video')}
+                className={`flex items-center p-4 rounded-2xl border-2 transition-all text-left ${consultType === 'video' ? 'border-[#0071E3] bg-[#0071E3]/5' : 'border-[#D2D2D7]/50 bg-white hover:border-[#0071E3]/50'}`}>
+                
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${consultType === 'video' ? 'bg-[#0071E3] text-white' : 'bg-[#F5F5F7] text-[#86868B]'}`}>
+                  
+                  <Video className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-semibold text-[#1D1D1F]">Video Consult</p>
+                  <p className="text-sm text-[#86868B]">Rs. 2,500</p>
+                </div>
+              </button>
+              <button
+                onClick={() => setConsultType('in-person')}
+                className={`flex items-center p-4 rounded-2xl border-2 transition-all text-left ${consultType === 'in-person' ? 'border-[#0071E3] bg-[#0071E3]/5' : 'border-[#D2D2D7]/50 bg-white hover:border-[#0071E3]/50'}`}>
+                
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${consultType === 'in-person' ? 'bg-[#0071E3] text-white' : 'bg-[#F5F5F7] text-[#86868B]'}`}>
+                  
+                  <MapPin className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-semibold text-[#1D1D1F]">
+                    In-Person Visit
+                  </p>
+                  <p className="text-sm text-[#86868B]">Rs. 3,000</p>
+                </div>
+              </button>
+            </div>
+          </GlassCard>
+        </section>
+
+        {/* Reviews */}
+        <section>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Patient Reviews</h2>
+            <button className="text-[#0071E3] text-sm font-medium hover:underline">
+              See All (248)
+            </button>
+          </div>
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) =>
+            <GlassCard key={i} className="p-5">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#F5F5F7] flex items-center justify-center text-[#86868B] font-medium">
+                      A{i}
+                    </div>
+                    <div>
+                      <p className="font-medium">Anonymous Patient</p>
+                      <p className="text-xs text-[#86868B]">
+                        Oct {20 - i}, 2023
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex">
+                    {[1, 2, 3, 4, 5].map((star) =>
+                  <Star
+                    key={star}
+                    className="w-4 h-4 text-[#FF9F0A] fill-[#FF9F0A]" />
+
+                  )}
+                  </div>
+                </div>
+                <p className="text-[#1D1D1F] text-sm leading-relaxed mt-3">
+                  Very professional and attentive. Dr. Perera took the time to
+                  explain my condition clearly and answered all my questions.
+                  Highly recommended!
+                </p>
+              </GlassCard>
+            )}
+          </div>
+        </section>
+      </main>
+
+      {/* Sticky Booking CTA */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-[#D2D2D7]/50 p-4 pb-safe z-40">
+        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-center sm:text-left w-full sm:w-auto">
+            <p className="text-sm text-[#86868B] mb-0.5">
+              Oct {selectedDate}, {selectedTime} •{' '}
+              {consultType === 'video' ? 'Video' : 'In-Person'}
+            </p>
+            <p className="font-semibold text-lg">
+              Total: Rs. {consultType === 'video' ? '2,500' : '3,000'}
+            </p>
+          </div>
+          <AppleButton
+            size="lg"
+            className="w-full sm:w-auto px-12"
+            onClick={handleBook}>
+            
+            Confirm Booking
+          </AppleButton>
+        </div>
+      </div>
+
+      {/* Booking Confirmation Modal */}
+      <AnimatePresence>
+        {showModal &&
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+            initial={{
+              opacity: 0
+            }}
+            animate={{
+              opacity: 1
+            }}
+            exit={{
+              opacity: 0
+            }}
+            className="absolute inset-0 bg-[#1D1D1F]/40 backdrop-blur-sm"
+            onClick={() => setShowModal(false)} />
+          
+            <motion.div
+            initial={{
+              opacity: 0,
+              scale: 0.95,
+              y: 20
+            }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+              y: 0
+            }}
+            exit={{
+              opacity: 0,
+              scale: 0.95,
+              y: 20
+            }}
+            transition={{
+              type: 'spring',
+              stiffness: 300,
+              damping: 30
+            }}
+            className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 text-center">
+            
+              <motion.div
+              initial={{
+                scale: 0
+              }}
+              animate={{
+                scale: 1
+              }}
+              transition={{
+                type: 'spring',
+                stiffness: 300,
+                damping: 20,
+                delay: 0.1
+              }}
+              className="w-20 h-20 rounded-full bg-[#30D158]/10 text-[#30D158] flex items-center justify-center mx-auto mb-6">
+              
+                <CheckCircle className="w-10 h-10" />
+              </motion.div>
+
+              <h2 className="text-2xl font-bold mb-2">
+                Appointment Confirmed!
+              </h2>
+              <p className="text-[#86868B] mb-8">
+                You'll receive a confirmation via SMS and email shortly.
+              </p>
+
+              <div className="bg-[#F5F5F7] rounded-2xl p-4 mb-8 text-left space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-[#86868B]">Doctor</span>
+                  <span className="font-medium">Dr. Kumara Perera</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#86868B]">Date & Time</span>
+                  <span className="font-medium">
+                    Oct {selectedDate}, {selectedTime}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#86868B]">Type</span>
+                  <span className="font-medium capitalize">{consultType}</span>
+                </div>
+                <div className="pt-3 border-t border-[#D2D2D7]/50 flex justify-between">
+                  <span className="text-[#86868B]">Amount Paid</span>
+                  <span className="font-bold">
+                    Rs. {consultType === 'video' ? '2,500' : '3,000'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <AppleButton
+                className="w-full"
+                onClick={() => navigate('/dashboard')}>
+                
+                  View Appointment
+                </AppleButton>
+                <AppleButton
+                variant="secondary"
+                className="w-full"
+                onClick={() => navigate('/')}>
+                
+                  Back to Home
+                </AppleButton>
+              </div>
+            </motion.div>
+          </div>
+        }
+      </AnimatePresence>
+    </div>);
+
+}
