@@ -2,7 +2,8 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
-const db = require('./db');
+const connectDB = require('./config/db');
+const TelemedicineSession = require('./models/TelemedicineSession');
 
 const app = express();
 const port = Number(process.env.PORT || 8085);
@@ -11,37 +12,50 @@ const jitsiBaseUrl = process.env.JITSI_BASE_URL || 'https://meet.jit.si';
 app.use(cors());
 app.use(express.json());
 
+connectDB();
+
 app.get('/health', (_req, res) => {
   res.json({ service: 'telemedicine-service', status: 'ok' });
 });
 
-// Generate and persist a Jitsi meeting link so it is traceable in DB.
-app.post('/create-meeting', (req, res) => {
-  const { appointmentId = null, doctorId = null, patientId = null } = req.body || {};
+app.post('/create-meeting', async (req, res) => {
+  try {
+    const { appointmentId, doctorId, patientId } = req.body || {};
 
-  const roomName = `healthcare_${Date.now()}`;
-  const url = `${jitsiBaseUrl}/${roomName}`;
+    if (!appointmentId || !doctorId || !patientId) {
+      return res.status(400).json({
+        message: 'appointmentId, doctorId, and patientId are required'
+      });
+    }
 
-  const insert = db.prepare(`
-    INSERT INTO telemedicine_sessions (appointment_id, doctor_id, patient_id, room_name, meeting_url)
-    VALUES (?, ?, ?, ?, ?)
-  `);
+    const existing = await TelemedicineSession.findOne({ appointmentId: Number(appointmentId) });
+    if (existing) {
+      return res.status(200).json({
+        message: 'Session already exists for this appointment',
+        data: existing
+      });
+    }
 
-  const safeAppointmentId = Number(appointmentId) || Math.floor(Date.now() / 1000);
-  const safeDoctorId = Number(doctorId) || 0;
-  const safePatientId = Number(patientId) || 0;
+    const roomName = `healthcare_${Date.now()}`;
+    const meetingUrl = `${jitsiBaseUrl}/${roomName}`;
 
-  insert.run(safeAppointmentId, safeDoctorId, safePatientId, roomName, url);
+    const created = await TelemedicineSession.create({
+      appointmentId: Number(appointmentId),
+      doctorId: Number(doctorId),
+      patientId: Number(patientId),
+      roomName,
+      meetingUrl
+    });
 
-  res.json({
-    meetingId: roomName,
-    meetingUrl: url,
-    appointmentId: safeAppointmentId
-  });
+    return res.status(201).json({
+      message: 'Meeting created',
+      data: created
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to create meeting', error: error.message });
+  }
 });
 
 app.listen(port, () => {
-  db.prepare('SELECT 1 as ok').get();
   console.log(`Telemedicine Service running on port ${port}`);
-  console.log('Telemedicine database initialized successfully');
 });
