@@ -19,7 +19,7 @@ spec:
           image: doctor-service:latest
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8083
+            - containerPort: 8082
           env:
             - name: PORT
               value: "8083"

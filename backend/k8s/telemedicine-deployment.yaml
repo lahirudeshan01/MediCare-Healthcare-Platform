@@ -19,10 +19,10 @@ spec:
           image: telemedicine-service:latest
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8087
+            - containerPort: 8085
           env:
             - name: PORT
-              value: "8087"
+              value: "8085"
             - name: DB_PATH
               value: "/app/data/telemedicine-service.db"
             - name: JITSI_BASE_URL
