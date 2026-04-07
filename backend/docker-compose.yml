@@ -1,0 +1,28 @@
+version: '3.9'
+services:
+  doctor-service:
+    build: ./doctor-service
+    container_name: doctor-service
+    ports:
+      - "8083:8083"
+    environment:
+      - PORT=8083
+      - DB_PATH=/app/data/doctor-service.db
+    volumes:
+      - doctor_data:/app/data
+
+  telemedicine-service:
+    build: ./telemedicine-service
+    container_name: telemedicine-service
+    ports:
+      - "8087:8087"
+    environment:
+      - PORT=8087
+      - DB_PATH=/app/data/telemedicine-service.db
+      - JITSI_BASE_URL=https://meet.jit.si
+    volumes:
+      - telemedicine_data:/app/data
+
+volumes:
+  doctor_data:
+  telemedicine_data:

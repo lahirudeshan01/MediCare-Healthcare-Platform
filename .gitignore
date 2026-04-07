@@ -1,0 +1,10 @@
+# Backend dependencies
+backend/**/node_modules/
+
+# Local databases
+backend/**/*.db
+backend/**/*.db-shm
+backend/**/*.db-wal
+
+# Environment files
+backend/**/.env

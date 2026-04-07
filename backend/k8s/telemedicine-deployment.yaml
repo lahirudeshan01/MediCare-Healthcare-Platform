@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telemedicine-service
+  labels:
+    app: telemedicine-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: telemedicine-service
+  template:
+    metadata:
+      labels:
+        app: telemedicine-service
+    spec:
+      containers:
+        - name: telemedicine-service
+          image: telemedicine-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8087
+          env:
+            - name: PORT
+              value: "8087"
+            - name: DB_PATH
+              value: "/app/data/telemedicine-service.db"
+            - name: JITSI_BASE_URL
+              value: "https://meet.jit.si"
+          volumeMounts:
+            - name: telemedicine-data
+              mountPath: /app/data
+      volumes:
+        - name: telemedicine-data
+          emptyDir: {}
