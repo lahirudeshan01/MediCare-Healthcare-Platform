@@ -1,6 +1,22 @@
 version: '3.8'
 
 services:
+  api-gateway:
+    build: ./api-gateway
+    container_name: medicare-api-gateway
+    ports:
+      - '3000:3000'
+    env_file:
+      - ./api-gateway/.env
+    depends_on:
+      - auth-service
+      - ai-symptom-service
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
   auth-service:
     build: ./auth-service
     container_name: medicare-auth-service
