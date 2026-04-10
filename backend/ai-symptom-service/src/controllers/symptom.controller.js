@@ -1,8 +1,6 @@
-const OpenAI = require('openai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const checkSymptoms = async (req, res) => {
   try {
@@ -12,24 +10,17 @@ const checkSymptoms = async (req, res) => {
       return res.status(400).json({ message: 'Please provide symptoms as a non-empty string.' });
     }
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are a helpful medical assistant. Given a list of symptoms from a patient, respond ONLY with a JSON object in this exact format: { "suggested_specialty": "<specialty>", "urgency": "low|medium|high", "advice": "<one sentence preliminary advice>" }. Do not add any explanation outside the JSON.',
-        },
-        {
-          role: 'user',
-          content: `My symptoms are: ${symptoms}`,
-        },
-      ],
-      temperature: 0.3,
-    });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    const content = completion.choices[0].message.content;
-    const parsed = JSON.parse(content);
+    const prompt = `You are a helpful medical assistant. Given a list of symptoms from a patient, respond ONLY with a JSON object in this exact format: { "suggested_specialty": "<specialty>", "urgency": "low|medium|high", "advice": "<one sentence preliminary advice>" }. Do not add any explanation outside the JSON.\n\nMy symptoms are: ${symptoms}`;
+
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const content = response.text();
+
+    // Strip markdown code fences if present
+    const jsonStr = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const parsed = JSON.parse(jsonStr);
 
     res.json(parsed);
   } catch (err) {
