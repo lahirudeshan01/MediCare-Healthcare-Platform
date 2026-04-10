@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  mongo-auth:
+    image: mongo:7
+    container_name: medicare-mongo-auth
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-auth-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build: ./auth-service
+    container_name: medicare-auth-service
+    ports:
+      - '3001:3001'
+    env_file:
+      - ./auth-service/.env
+    environment:
+      - MONGO_URI=mongodb://mongo-auth:27017/medicare-auth
+    depends_on:
+      mongo-auth:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3001/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  ai-symptom-service:
+    build: ./ai-symptom-service
+    container_name: medicare-ai-symptom-service
+    ports:
+      - '3002:3002'
+    env_file:
+      - ./ai-symptom-service/.env
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3002/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  mongo-auth-data:
