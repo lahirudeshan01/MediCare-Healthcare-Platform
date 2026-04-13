@@ -804,6 +804,7 @@ export function DoctorDashboard() {
                           <p className="text-sm text-[#86868B]">
                             {formatAppointmentDateLabel(apt.appointmentDate)} • {apt.consultType === 'video' ? 'Video Consultation' : 'In-Person Visit'}
                           </p>
+                          <p className="text-xs text-[#86868B] mt-1">Patient ID: {apt.patientId || 'N/A'}</p>
                         </div>
                         <div className="flex items-center gap-4">
                           <StatusBadge status="confirmed" />
@@ -1294,6 +1295,7 @@ export function DoctorDashboard() {
                       <p className="text-sm text-[#86868B]">
                         {formatAppointmentDateLabel(apt.appointmentDate)}, {apt.appointmentTime}
                       </p>
+                      <p className="text-xs text-[#86868B] mt-1">Patient ID: {apt.patientId || 'N/A'}</p>
                       <p className="text-sm text-[#1D1D1F] mt-1">Reason: {apt.reason}</p>
                     </div>
                     <div className="flex items-center gap-3">
