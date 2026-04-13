@@ -144,14 +144,16 @@ export function LandingPage() {
               )}
             </div>
             <div className="flex items-center gap-4">
+              {/* Sign In is temporarily disabled until auth flow is ready */}
+              {/*
               <AppleButton
                 variant="ghost"
                 size="sm"
                 className="hidden md:inline-flex"
                 onClick={() => navigate('/auth')}>
-                
                 Sign In
               </AppleButton>
+              */}
               <AppleButton size="sm" onClick={() => navigate('/auth')}>
                 Get Started
               </AppleButton>
@@ -545,7 +547,7 @@ export function LandingPage() {
               variant="secondary"
               className="!bg-white !text-[#1D1D1F] hover:!bg-white/90"
               size="lg"
-              onClick={() => navigate('/auth')}>
+              onClick={() => navigate('/doctor-dashboard#')}>
               
               Join the Provider Network
             </AppleButton>
