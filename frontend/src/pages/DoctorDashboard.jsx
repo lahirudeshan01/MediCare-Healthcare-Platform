@@ -810,7 +810,11 @@ export function DoctorDashboard() {
                           {apt.consultType === 'video' &&
                         <AppleButton
                           size="sm"
-                          onClick={() => navigate('/consultation')}
+                          onClick={() =>
+                          navigate(
+                            `/consultation?appointmentId=${apt._id}&doctorId=${doctorId}&patientId=${apt.patientId || 1}`
+                          )
+                          }
                           icon={<Video className="w-4 h-4" />}>
                           
                               Join
@@ -1297,7 +1301,11 @@ export function DoctorDashboard() {
                       {apt.consultType === 'video' &&
                   <AppleButton
                     size="sm"
-                    onClick={() => navigate('/consultation')}
+                    onClick={() =>
+                    navigate(
+                      `/consultation?appointmentId=${apt._id}&doctorId=${doctorId}&patientId=${apt.patientId || 1}`
+                    )
+                    }
                     icon={<Video className="w-4 h-4" />}>
                           Join
                         </AppleButton>
