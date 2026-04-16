@@ -21,7 +21,7 @@ export function App() {
         <Route path="/doctor/:id" element={<DoctorProfile />} />
         <Route path="/consultation" element={<VideoConsultation />} />
         <Route path="/ai-assistant" element={<AISymptomChecker />} />
-        <Route path="/profile" element={<PatientProfile />} />
+        <Route path="/profile/:id?" element={<PatientProfile />} />
         <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
         <Route path="/admin" element={<AdminDashboard />} />
       </Routes>

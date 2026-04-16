@@ -1,56 +1,34 @@
 version: '3.8'
 
 services:
-  api-gateway:
-    build: ./api-gateway
-    container_name: medicare-api-gateway
+  patient-service:
+    build: .
+    container_name: patient-service
     ports:
-      - '3000:3000'
-    env_file:
-      - ./api-gateway/.env
-    depends_on:
-      - auth-service
-      - ai-symptom-service
-    networks:
-      - medicare-network
-
-  auth-service:
-    build: ./auth-service
-    container_name: medicare-auth-service
-    ports:
-      - '3001:3001'
-    env_file:
-      - ./auth-service/.env
-    depends_on:
-      - mongo-auth
-    networks:
-      - medicare-network
-
-  ai-symptom-service:
-    build: ./ai-symptom-service
-    container_name: medicare-ai-symptom-service
-    ports:
-      - '3002:3002'
-    env_file:
-      - ./ai-symptom-service/.env
-    depends_on:
-      - mongo-auth
-    networks:
-      - medicare-network
-
-  mongo-auth:
-    image: mongo:6
-    container_name: medicare-mongo-auth
-    ports:
-      - '27017:27017'
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - MONGODB_URI=mongodb://patient-mongodb:27017/patient_db
     volumes:
-      - mongo-auth-data:/data/db
+      - ./uploads:/usr/src/app/uploads
+    depends_on:
+      - patient-mongodb
     networks:
-      - medicare-network
+      - patient-network
 
-networks:
-  medicare-network:
-    driver: bridge
+  patient-mongodb:
+    image: mongo:latest
+    container_name: patient-mongodb
+    ports:
+      - "27017:27017" # Exposed to host if needed, optional
+    volumes:
+      - patient-mongo-data:/data/db
+    networks:
+      - patient-network
 
 volumes:
-  mongo-auth-data:
+  patient-mongo-data:
+
+networks:
+  patient-network:
+    driver: bridge
