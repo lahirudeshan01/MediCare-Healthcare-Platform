@@ -3,18 +3,65 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Activity, Eye, EyeOff } from 'lucide-react';
 import { AppleButton } from '../components/ui/AppleButton';
+import axios from 'axios';
+import { AUTH_SERVICE } from '../config/api';
 export function AuthPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('login');
   const [role, setRole] = useState('patient');
   const [showPassword, setShowPassword] = useState(false);
-  const handleLogin = (e) => {
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
-    navigate('/dashboard');
+    setError('');
+    setLoading(true);
+    try {
+      const res = await axios.post(`${AUTH_SERVICE}/auth/login`, {
+        email: loginEmail,
+        password: loginPassword,
+      });
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+      const role = res.data.user.role;
+      if (role === 'doctor') navigate('/doctor-dashboard');
+      else if (role === 'admin') navigate('/admin');
+      else navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Login failed.');
+    } finally {
+      setLoading(false);
+    }
   };
-  const handleRegister = (e) => {
+
+  const handleRegister = async (e) => {
     e.preventDefault();
-    navigate('/dashboard');
+    setError('');
+    setLoading(true);
+    try {
+      const res = await axios.post(`${AUTH_SERVICE}/auth/register`, {
+        name: regName,
+        email: regEmail,
+        password: regPassword,
+        role,
+      });
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+      const role = res.data.user.role;
+      if (role === 'doctor') navigate('/doctor-dashboard');
+      else if (role === 'admin') navigate('/admin');
+      else navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Registration failed.');
+    } finally {
+      setLoading(false);
+    }
   };
   return (
     <div className="min-h-screen bg-[#F5F5F7] flex flex-col items-center justify-center p-4 font-['Inter',system-ui,sans-serif] text-[#1D1D1F]">
@@ -94,6 +141,9 @@ export function AuthPage() {
               onSubmit={handleLogin}
               className="space-y-5">
               
+                {error && tab === 'login' && (
+                  <div className="p-3 bg-red-50 text-red-600 text-sm rounded-xl">{error}</div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-[#1D1D1F] mb-1.5">
                     Email
@@ -101,6 +151,8 @@ export function AuthPage() {
                   <input
                   type="email"
                   placeholder="name@example.com"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
                   className="w-full px-4 py-3 bg-[#F5F5F7] border-transparent rounded-xl text-[#1D1D1F] placeholder-[#86868B] focus:bg-white focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all outline-none"
                   required />
                 
@@ -121,6 +173,8 @@ export function AuthPage() {
                     <input
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
                     className="w-full pl-4 pr-12 py-3 bg-[#F5F5F7] border-transparent rounded-xl text-[#1D1D1F] placeholder-[#86868B] focus:bg-white focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all outline-none"
                     required />
                   
@@ -152,8 +206,8 @@ export function AuthPage() {
                   </label>
                 </div>
 
-                <AppleButton type="submit" className="w-full">
-                  Sign In
+                <AppleButton type="submit" className="w-full" disabled={loading}>
+                  {loading ? 'Signing In...' : 'Sign In'}
                 </AppleButton>
 
                 <div className="relative py-4">
@@ -214,6 +268,9 @@ export function AuthPage() {
               onSubmit={handleRegister}
               className="space-y-5">
               
+                {error && tab === 'register' && (
+                  <div className="p-3 bg-red-50 text-red-600 text-sm rounded-xl">{error}</div>
+                )}
                 <div className="flex p-1 bg-[#F5F5F7] rounded-xl relative">
                   <button
                   type="button"
@@ -250,6 +307,8 @@ export function AuthPage() {
                   <input
                   type="text"
                   placeholder="John Doe"
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
                   className="w-full px-4 py-3 bg-[#F5F5F7] border-transparent rounded-xl text-[#1D1D1F] placeholder-[#86868B] focus:bg-white focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all outline-none"
                   required />
                 
@@ -262,6 +321,8 @@ export function AuthPage() {
                   <input
                   type="email"
                   placeholder="name@example.com"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
                   className="w-full px-4 py-3 bg-[#F5F5F7] border-transparent rounded-xl text-[#1D1D1F] placeholder-[#86868B] focus:bg-white focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all outline-none"
                   required />
                 
@@ -325,6 +386,8 @@ export function AuthPage() {
                     <input
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
                     className="w-full pl-4 pr-12 py-3 bg-[#F5F5F7] border-transparent rounded-xl text-[#1D1D1F] placeholder-[#86868B] focus:bg-white focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all outline-none"
                     required />
                   
@@ -364,8 +427,8 @@ export function AuthPage() {
                   </label>
                 </div>
 
-                <AppleButton type="submit" className="w-full">
-                  Create Account
+                <AppleButton type="submit" className="w-full" disabled={loading}>
+                  {loading ? 'Creating Account...' : 'Create Account'}
                 </AppleButton>
               </motion.form>
             }
@@ -384,13 +447,6 @@ export function AuthPage() {
           {tab === 'login' ? 'Register' : 'Sign in'}
         </button>
       </p>
-
-      <button
-        onClick={() => navigate('/admin')}
-        className="mt-4 px-4 py-2 text-xs font-medium text-[#86868B] border border-dashed border-[#D2D2D7] rounded-lg hover:text-[#1D1D1F] hover:border-[#86868B] transition-colors">
-        
-        ⚙️ Admin Dashboard (Dev Only)
-      </button>
     </div>);
 
 }

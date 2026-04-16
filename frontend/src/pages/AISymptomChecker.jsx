@@ -9,6 +9,8 @@ import {
   AlertTriangle } from
 'lucide-react';
 import { AppleButton } from '../components/ui/AppleButton';
+import axios from 'axios';
+import { AI_SERVICE } from '../config/api';
 const COMMON_SYMPTOMS = [
 'Headache',
 'Fever',
@@ -42,7 +44,7 @@ export function AISymptomChecker() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
-  const handleSend = (text = input) => {
+  const handleSend = async (text = input) => {
     if (!text.trim()) return;
     const newUserMsg = {
       id: Date.now().toString(),
@@ -52,94 +54,65 @@ export function AISymptomChecker() {
     setMessages((prev) => [...prev, newUserMsg]);
     setInput('');
     setIsTyping(true);
-    // Mock AI Response
-    setTimeout(() => {
-      setIsTyping(false);
-      let aiResponse;
-      if (
-      text.toLowerCase().includes('headache') ||
-      text.toLowerCase().includes('fever'))
-      {
-        aiResponse =
+
+    try {
+      const res = await axios.post(`${AI_SERVICE}/ai/check-symptoms`, {
+        symptoms: text,
+      });
+      const { suggested_specialty, urgency, advice } = res.data;
+
+      const urgencyColor = {
+        low: { bg: 'bg-green-100', text: 'text-green-700' },
+        medium: { bg: 'bg-[#FF9F0A]/10', text: 'text-[#FF9F0A]' },
+        high: { bg: 'bg-red-100', text: 'text-red-700' },
+      };
+      const colors = urgencyColor[urgency] || urgencyColor.medium;
+
+      const aiResponse = (
         <div className="space-y-4">
-            <p>
-              Based on your symptoms of headache and fever, here is a
-              preliminary assessment:
-            </p>
-
-            <div className="bg-white border border-[#D2D2D7]/50 rounded-xl p-4 shadow-sm">
-              <h4 className="font-semibold mb-3">Preliminary Assessment</h4>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-sm text-[#86868B]">Severity:</span>
-                <span className="px-2 py-1 bg-[#FF9F0A]/10 text-[#FF9F0A] text-xs font-medium rounded-md">
-                  Moderate
-                </span>
-              </div>
-
-              <div className="space-y-3 mb-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Viral Infection</span>
-                    <span className="text-[#86868B]">85%</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-[#F5F5F7] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#0071E3] w-[85%] rounded-full"></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Tension Headache</span>
-                    <span className="text-[#86868B]">40%</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-[#F5F5F7] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#0071E3] w-[40%] rounded-full opacity-60"></div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-[#F5F5F7] p-3 rounded-lg mb-4">
-                <p className="text-sm font-medium mb-2">Recommendations:</p>
-                <ul className="text-sm text-[#86868B] space-y-1 list-disc pl-4">
-                  <li>Stay hydrated and rest</li>
-                  <li>
-                    Monitor temperature — seek immediate care if above 103°F
-                  </li>
-                  <li>Over-the-counter pain relief may help</li>
-                </ul>
-              </div>
-
-              <div className="flex items-center justify-between pt-3 border-t border-[#D2D2D7]/50">
-                <span className="text-sm font-medium">
-                  Recommended: General Physician
-                </span>
-                <AppleButton size="sm" onClick={() => navigate('/doctors')}>
-                  Book Appointment
-                </AppleButton>
-              </div>
+          <p>Based on your symptoms, here is a preliminary assessment:</p>
+          <div className="bg-white border border-[#D2D2D7]/50 rounded-xl p-4 shadow-sm">
+            <h4 className="font-semibold mb-3">Preliminary Assessment</h4>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-sm text-[#86868B]">Urgency:</span>
+              <span className={`px-2 py-1 ${colors.bg} ${colors.text} text-xs font-medium rounded-md capitalize`}>
+                {urgency}
+              </span>
             </div>
-
-            <div className="flex gap-2 items-start bg-[#FF9F0A]/10 p-3 rounded-xl text-sm text-[#FF9F0A]">
-              <AlertTriangle className="w-5 h-5 shrink-0" />
-              <p>
-                This is an AI-generated suggestion and not a medical diagnosis.
-                Please consult a healthcare professional for proper evaluation.
-              </p>
+            <div className="bg-[#F5F5F7] p-3 rounded-lg mb-4">
+              <p className="text-sm font-medium mb-1">Advice:</p>
+              <p className="text-sm text-[#86868B]">{advice}</p>
             </div>
-          </div>;
-
-      } else {
-        aiResponse =
-        "I understand. To give you a better assessment, could you tell me how long you've been experiencing these symptoms and if you have any other conditions?";
-      }
-      setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        type: 'ai',
-        content: aiResponse
-      }]
+            <div className="flex items-center justify-between pt-3 border-t border-[#D2D2D7]/50">
+              <span className="text-sm font-medium">Recommended: {suggested_specialty}</span>
+              <AppleButton size="sm" onClick={() => navigate('/doctors')}>
+                Book Appointment
+              </AppleButton>
+            </div>
+          </div>
+          <div className="flex gap-2 items-start bg-[#FF9F0A]/10 p-3 rounded-xl text-sm text-[#FF9F0A]">
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <p>This is an AI-generated suggestion and not a medical diagnosis. Please consult a healthcare professional for proper evaluation.</p>
+          </div>
+        </div>
       );
-    }, 1500);
+
+      setIsTyping(false);
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now().toString(), type: 'ai', content: aiResponse },
+      ]);
+    } catch (err) {
+      setIsTyping(false);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          type: 'ai',
+          content: 'Sorry, I encountered an error analyzing your symptoms. Please try again later.',
+        },
+      ]);
+    }
   };
   return (
     <div className="h-screen bg-white font-['Inter',system-ui,sans-serif] flex flex-col">
