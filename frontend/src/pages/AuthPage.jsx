@@ -29,9 +29,9 @@ export function AuthPage() {
       });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
-      const role = res.data.user.role;
-      if (role === 'doctor') navigate('/doctor-dashboard');
-      else if (role === 'admin') navigate('/admin');
+      const userRole = res.data.user.role;
+      if (userRole === 'doctor') navigate('/doctor-dashboard');
+      else if (userRole === 'admin') navigate('/admin');
       else navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed.');
@@ -53,9 +53,9 @@ export function AuthPage() {
       });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
-      const role = res.data.user.role;
-      if (role === 'doctor') navigate('/doctor-dashboard');
-      else if (role === 'admin') navigate('/admin');
+      const userRole = res.data.user.role;
+      if (userRole === 'doctor') navigate('/doctor-dashboard');
+      else if (userRole === 'admin') navigate('/admin');
       else navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed.');

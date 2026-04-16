@@ -4,6 +4,8 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const TelemedicineSession = require('./models/TelemedicineSession');
+const verifyToken = require('./middleware/verifyToken');
+const { startConsumer } = require('./rabbitmq');
 
 const app = express();
 const port = Number(process.env.PORT || 8085);
@@ -116,7 +118,17 @@ const createTelemedicineSession = async ({ appointmentId, doctorId, patientId, p
   };
 };
 
-app.post('/telemedicine/sessions', async (req, res) => {
+// ── RabbitMQ consumer — auto-create session when appointment is approved ──
+startConsumer(async (data) => {
+  const { appointmentId, doctorId, patientId, provider } = data;
+  console.log('[Consumer] appointment.approved received:', appointmentId);
+  const result = await createTelemedicineSession({ appointmentId, doctorId, patientId, provider });
+  console.log(`[Consumer] Session result (${result.status}):`, result.payload.message);
+});
+
+// ── API routes (protected by JWT) ─────────────────────────────────────────
+
+app.post('/telemedicine/sessions', verifyToken, async (req, res) => {
   try {
     const { appointmentId, doctorId, patientId, provider } = req.body || {};
 
@@ -133,7 +145,7 @@ app.post('/telemedicine/sessions', async (req, res) => {
   }
 });
 
-app.get('/telemedicine/sessions/:appointmentId', async (req, res) => {
+app.get('/telemedicine/sessions/:appointmentId', verifyToken, async (req, res) => {
   try {
     const appointmentId = String(req.params.appointmentId);
     const session = await TelemedicineSession.findOne({ appointmentId });
@@ -148,7 +160,7 @@ app.get('/telemedicine/sessions/:appointmentId', async (req, res) => {
   }
 });
 
-app.get('/telemedicine/sessions/:appointmentId/delivery-log', async (req, res) => {
+app.get('/telemedicine/sessions/:appointmentId/delivery-log', verifyToken, async (req, res) => {
   try {
     const appointmentId = String(req.params.appointmentId);
     const session = await TelemedicineSession.findOne({ appointmentId });
@@ -166,7 +178,7 @@ app.get('/telemedicine/sessions/:appointmentId/delivery-log', async (req, res) =
   }
 });
 
-app.post('/telemedicine/sessions/:appointmentId/end', async (req, res) => {
+app.post('/telemedicine/sessions/:appointmentId/end', verifyToken, async (req, res) => {
   try {
     const appointmentId = String(req.params.appointmentId);
     const session = await TelemedicineSession.findOneAndUpdate(
@@ -185,7 +197,8 @@ app.post('/telemedicine/sessions/:appointmentId/end', async (req, res) => {
   }
 });
 
-app.post('/create-meeting', async (req, res) => {
+// Legacy alias kept for backwards compatibility
+app.post('/create-meeting', verifyToken, async (req, res) => {
   try {
     const { appointmentId, doctorId, patientId, provider } = req.body || {};
     const result = await createTelemedicineSession({

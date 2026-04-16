@@ -1,5 +1,6 @@
-const path = require('path');
-const Database = require('better-sqlite3');
+// This file is deprecated. The telemedicine-service uses MongoDB via ./config/db.js
+// Do not use or import this file.
+
 
 const dbPath = process.env.DB_PATH || './telemedicine-service.db';
 const resolvedPath = path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath);

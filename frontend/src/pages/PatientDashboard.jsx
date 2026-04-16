@@ -21,13 +21,14 @@ import {
   Download,
   MapPin,
   ArrowUp,
-  Paperclip,
   AlertTriangle,
   CheckCircle,
   XCircle } from
 'lucide-react';
 import { GlassCard } from '../components/ui/GlassCard';
 import { AppleButton } from '../components/ui/AppleButton';
+import axios from 'axios';
+import { AI_SERVICE } from '../config/api';
 import { StatusBadge } from '../components/ui/StatusBadge';
 const COMMON_SYMPTOMS = [
 'Headache',
@@ -86,14 +87,51 @@ export function PatientDashboard() {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
-  const [messages, setMessages] = useState([
-  {
-    id: '1',
-    type: 'ai',
-    content:
-    `Hi ${userName.split(' ')[0]} 👋 I'm your AI health assistant. Tell me about your symptoms and I'll provide preliminary guidance. Remember, this isn't a substitute for professional medical advice.`
-  }]
-  );
+  const PATIENT_CHAT_KEY = `patient_ai_chat_${user.id || user.email || 'guest'}`;
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem(PATIENT_CHAT_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [{ id: '1', type: 'ai', content: `Hi ${userName.split(' ')[0]} 👋 I'm your AI health assistant. Tell me about your symptoms and I'll provide preliminary guidance. Remember, this isn't a substitute for professional medical advice.` }];
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(PATIENT_CHAT_KEY, JSON.stringify(messages)); } catch {}
+  }, [messages, PATIENT_CHAT_KEY]);
+
+  const renderAIContent = (msg) => {
+    if (msg.contentType === 'assessment') {
+      const { suggested_specialty, urgency, overview, possible_conditions, recommendations, warning_signs, advice } = msg.data;
+      const urgencyColor = { low: { bg: 'bg-green-100', text: 'text-green-700' }, medium: { bg: 'bg-[#FF9F0A]/10', text: 'text-[#FF9F0A]' }, high: { bg: 'bg-red-100', text: 'text-red-700' } };
+      const colors = urgencyColor[urgency] || urgencyColor.medium;
+      return (
+        <div className="space-y-4">
+          <p>Based on your symptoms, here is a detailed assessment:</p>
+          <div className="bg-white border border-[#D2D2D7]/50 rounded-xl p-4 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold">Preliminary Assessment</h4>
+              <span className={`px-2 py-1 ${colors.bg} ${colors.text} text-xs font-medium rounded-md capitalize`}>{urgency} urgency</span>
+            </div>
+            {overview && (<div className="bg-[#F5F5F7] p-3 rounded-lg"><p className="text-sm font-medium mb-1">Overview:</p><p className="text-sm text-[#1D1D1F] leading-relaxed">{overview}</p></div>)}
+            {possible_conditions && possible_conditions.length > 0 && (<div><p className="text-sm font-medium mb-2">Possible Conditions:</p><div className="flex flex-wrap gap-2">{possible_conditions.map((c, i) => (<span key={i} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-md">{c}</span>))}</div></div>)}
+            {recommendations && recommendations.length > 0 && (<div><p className="text-sm font-medium mb-2">Recommendations:</p><ul className="text-sm text-[#86868B] space-y-1 list-disc pl-4">{recommendations.map((r, i) => <li key={i}>{r}</li>)}</ul></div>)}
+            {warning_signs && (<div className="bg-red-50 p-3 rounded-lg"><p className="text-sm font-medium text-red-700 mb-1">Seek Emergency Care If:</p><p className="text-sm text-red-600">{warning_signs}</p></div>)}
+            <div className="bg-[#F5F5F7] p-3 rounded-lg"><p className="text-sm font-medium mb-1">Summary Advice:</p><p className="text-sm text-[#1D1D1F]">{advice}</p></div>
+            <div className="flex items-center justify-between pt-3 border-t border-[#D2D2D7]/50">
+              <span className="text-sm font-medium">Recommended: {suggested_specialty}</span>
+              <AppleButton size="sm" onClick={() => navigate('/doctors')}>Book Appointment</AppleButton>
+            </div>
+          </div>
+          <div className="flex gap-2 items-start bg-[#FF9F0A]/10 p-3 rounded-xl text-sm text-[#FF9F0A]">
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <p>This is an AI-generated suggestion and not a medical diagnosis. Please consult a healthcare professional for proper evaluation.</p>
+          </div>
+        </div>
+      );
+    }
+    return <p className="text-[15px] leading-relaxed">{msg.content}</p>;
+  };
   // Profile State
   const [profileTab, setProfileTab] = useState('settings');
   useEffect(() => {
@@ -103,7 +141,7 @@ export function PatientDashboard() {
       });
     }
   }, [messages, isTyping, activeSection]);
-  const handleSendAI = (text = input) => {
+  const handleSendAI = async (text = input) => {
     if (!text.trim()) return;
     const newUserMsg = {
       id: Date.now().toString(),
@@ -113,88 +151,27 @@ export function PatientDashboard() {
     setMessages((prev) => [...prev, newUserMsg]);
     setInput('');
     setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
-      let aiResponse;
-      if (
-      text.toLowerCase().includes('headache') ||
-      text.toLowerCase().includes('fever'))
-      {
-        aiResponse =
-        <div className="space-y-4">
-            <p>
-              Based on your symptoms of headache and fever, here is a
-              preliminary assessment:
-            </p>
-            <div className="bg-white border border-[#D2D2D7]/50 rounded-xl p-4 shadow-sm">
-              <h4 className="font-semibold mb-3">Preliminary Assessment</h4>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-sm text-[#86868B]">Severity:</span>
-                <span className="px-2 py-1 bg-[#FF9F0A]/10 text-[#FF9F0A] text-xs font-medium rounded-md">
-                  Moderate
-                </span>
-              </div>
-              <div className="space-y-3 mb-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Viral Infection</span>
-                    <span className="text-[#86868B]">85%</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-[#F5F5F7] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#0071E3] w-[85%] rounded-full"></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Tension Headache</span>
-                    <span className="text-[#86868B]">40%</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-[#F5F5F7] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#0071E3] w-[40%] rounded-full opacity-60"></div>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-[#F5F5F7] p-3 rounded-lg mb-4">
-                <p className="text-sm font-medium mb-2">Recommendations:</p>
-                <ul className="text-sm text-[#86868B] space-y-1 list-disc pl-4">
-                  <li>Stay hydrated and rest</li>
-                  <li>
-                    Monitor temperature — seek immediate care if above 103°F
-                  </li>
-                  <li>Over-the-counter pain relief may help</li>
-                </ul>
-              </div>
-              <div className="flex items-center justify-between pt-3 border-t border-[#D2D2D7]/50">
-                <span className="text-sm font-medium">
-                  Recommended: General Physician
-                </span>
-                <AppleButton size="sm" onClick={() => navigate('/doctors')}>
-                  Book Appointment
-                </AppleButton>
-              </div>
-            </div>
-            <div className="flex gap-2 items-start bg-[#FF9F0A]/10 p-3 rounded-xl text-sm text-[#FF9F0A]">
-              <AlertTriangle className="w-5 h-5 shrink-0" />
-              <p>
-                This is an AI-generated suggestion and not a medical diagnosis.
-                Please consult a healthcare professional for proper evaluation.
-              </p>
-            </div>
-          </div>;
 
-      } else {
-        aiResponse =
-        "I understand. To give you a better assessment, could you tell me how long you've been experiencing these symptoms and if you have any other conditions?";
-      }
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`${AI_SERVICE}/ai/check-symptoms`, {
+        symptoms: text,
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setIsTyping(false);
       setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        type: 'ai',
-        content: aiResponse
-      }]
-      );
-    }, 1500);
+        ...prev,
+        { id: Date.now().toString(), type: 'ai', contentType: 'assessment', data: res.data },
+      ]);
+    } catch (err) {
+      setIsTyping(false);
+      const errMsg = err.response?.data?.message || 'Sorry, I encountered an error analyzing your symptoms. Please try again later.';
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now().toString(), type: 'ai', content: errMsg },
+      ]);
+    }
   };
   const containerVariants = {
     hidden: {
@@ -685,11 +662,7 @@ export function PatientDashboard() {
                 <div
               className={`max-w-[85%] md:max-w-[75%] ${msg.type === 'user' ? 'bg-[#0071E3] text-white rounded-2xl rounded-tr-sm px-4 py-3' : 'bg-[#F5F5F7] text-[#1D1D1F] rounded-2xl rounded-tl-sm px-4 py-3'}`}>
               
-                  {typeof msg.content === 'string' ?
-              <p className="text-[15px] leading-relaxed">{msg.content}</p> :
-
-              msg.content
-              }
+                  {renderAIContent(msg)}
                 </div>
               </motion.div>
           )}
@@ -775,9 +748,6 @@ export function PatientDashboard() {
 
       <div className="p-4 bg-white border-t border-[#D2D2D7]/50">
         <div className="relative flex items-end gap-2">
-          <button className="p-3 text-[#86868B] hover:text-[#1D1D1F] transition-colors shrink-0">
-            <Paperclip className="w-6 h-6" />
-          </button>
           <div className="flex-1 bg-[#F5F5F7] rounded-2xl border border-transparent focus-within:border-[#D2D2D7] focus-within:bg-white transition-all overflow-hidden flex items-end">
             <textarea
             value={input}

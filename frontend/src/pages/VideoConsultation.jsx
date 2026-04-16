@@ -21,11 +21,14 @@ import { GlassCard } from '../components/ui/GlassCard';
 export function VideoConsultation() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const telemedicineApiBase = import.meta.env.VITE_TELEMEDICINE_API || 'http://localhost:8085';
+  const telemedicineApiBase = import.meta.env.VITE_TELEMEDICINE_API || 'http://localhost:3000';
+
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const token = localStorage.getItem('token') || '';
 
   const defaultAppointmentId = searchParams.get('appointmentId') || '1001';
-  const defaultDoctorId = searchParams.get('doctorId') || '1';
-  const defaultPatientId = searchParams.get('patientId') || '1';
+  const defaultDoctorId = searchParams.get('doctorId') || currentUser.id || '1';
+  const defaultPatientId = searchParams.get('patientId') || currentUser.id || '1';
 
   const [callState, setCallState] = useState('lobby');
   const [isMuted, setIsMuted] = useState(false);
@@ -54,7 +57,8 @@ export function VideoConsultation() {
       const response = await fetch(`${telemedicineApiBase}/telemedicine/sessions`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
           appointmentId: String(appointmentId),

@@ -4,23 +4,27 @@ require("dotenv").config();
 
 const connectDB = require("./config/db");
 const doctorRoutes = require("./routes/doctorRoutes");
+const { connectRabbitMQ } = require("./rabbitmq");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 connectDB();
+connectRabbitMQ();
 
 app.get("/", (_req, res) => {
-  res.json({ service: "doctor-service", status: "ok", basePath: "/api" });
+  res.json({ service: "doctor-service", status: "ok" });
 });
 
 app.get("/health", (_req, res) => {
   res.json({ service: "doctor-service", status: "ok" });
 });
 
-app.use("/api", doctorRoutes);
+// Routes mounted at root — gateway prefixes are preserved
+app.use("/", doctorRoutes);
 
-app.listen(8082, () => {
-  console.log("Doctor Service running on port 8082");
+const PORT = process.env.PORT || 8082;
+app.listen(PORT, () => {
+  console.log(`Doctor Service running on port ${PORT}`);
 });

@@ -34,9 +34,11 @@ AVAILABILITY_BLOCKS.map((block, blockIndex) => ({
 
 export function DoctorDashboard() {
   const navigate = useNavigate();
-  const doctorApiBase = import.meta.env.VITE_DOCTOR_API || 'http://localhost:8082';
-  const doctorId = '1'; // Temporary static doctor id until auth is integrated
+  const doctorApiBase = import.meta.env.VITE_DOCTOR_API || 'http://localhost:3000';
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const doctorId = user.id || user._id || '';
+  const token = localStorage.getItem('token') || '';
+  const authHeader = { Authorization: `Bearer ${token}` };
   const userName = user.name || 'Doctor';
   const userInitials = userName
     .split(' ')
@@ -215,7 +217,7 @@ export function DoctorDashboard() {
     setIsLoadingPrescriptions(true);
     setListMessage('');
     try {
-      const response = await fetch(`${doctorApiBase}/api/prescriptions?doctorId=${doctorId}`);
+      const response = await fetch(`${doctorApiBase}/prescriptions?doctorId=${doctorId}`, { headers: authHeader });
       if (!response.ok) {
         throw new Error('Failed to fetch prescriptions');
       }
@@ -234,8 +236,8 @@ export function DoctorDashboard() {
     setAppointmentMessage('');
     try {
       const [pendingResponse, approvedResponse] = await Promise.all([
-      fetch(`${doctorApiBase}/api/appointments?doctorId=${doctorId}&status=pending`),
-      fetch(`${doctorApiBase}/api/appointments?doctorId=${doctorId}&status=approved`)]);
+      fetch(`${doctorApiBase}/appointments?doctorId=${doctorId}&status=pending`, { headers: authHeader }),
+      fetch(`${doctorApiBase}/appointments?doctorId=${doctorId}&status=approved`, { headers: authHeader })]);
 
 
       if (!pendingResponse.ok || !approvedResponse.ok) {
@@ -261,8 +263,8 @@ export function DoctorDashboard() {
     setPatientMessage('');
     try {
       const [appointmentsResponse, prescriptionsResponse] = await Promise.all([
-      fetch(`${doctorApiBase}/api/appointments?doctorId=${doctorId}`),
-      fetch(`${doctorApiBase}/api/prescriptions?doctorId=${doctorId}`)]);
+      fetch(`${doctorApiBase}/appointments?doctorId=${doctorId}`, { headers: authHeader }),
+      fetch(`${doctorApiBase}/prescriptions?doctorId=${doctorId}`, { headers: authHeader })]);
 
 
       if (!appointmentsResponse.ok || !prescriptionsResponse.ok) {
@@ -349,7 +351,7 @@ export function DoctorDashboard() {
   const loadAvailability = async () => {
     setAvailabilityMessage('');
     try {
-      const response = await fetch(`${doctorApiBase}/api/doctors/${doctorId}/availability`);
+      const response = await fetch(`${doctorApiBase}/doctors/${doctorId}/availability`);
       if (!response.ok) {
         throw new Error('Failed to fetch availability');
       }
@@ -405,10 +407,11 @@ export function DoctorDashboard() {
     setIsSavingAvailability(true);
     setAvailabilityMessage('');
     try {
-      const response = await fetch(`${doctorApiBase}/api/doctors/${doctorId}/availability`, {
+      const response = await fetch(`${doctorApiBase}/doctors/${doctorId}/availability`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...authHeader
         },
         body: JSON.stringify({
           slots: availabilitySlots
@@ -434,10 +437,11 @@ export function DoctorDashboard() {
     setIsUpdatingAppointmentId(appointmentId);
 
     try {
-      const response = await fetch(`${doctorApiBase}/api/appointments/${appointmentId}/accept`, {
+      const response = await fetch(`${doctorApiBase}/appointments/${appointmentId}/accept`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...authHeader
         },
         body: JSON.stringify({ action })
       });
@@ -509,10 +513,11 @@ export function DoctorDashboard() {
 
     setIsSavingEdit(true);
     try {
-      const response = await fetch(`${doctorApiBase}/api/prescriptions/${id}`, {
+      const response = await fetch(`${doctorApiBase}/prescriptions/${id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...authHeader
         },
         body: JSON.stringify({
           doctorId,
@@ -547,8 +552,9 @@ export function DoctorDashboard() {
     }
 
     try {
-      const response = await fetch(`${doctorApiBase}/api/prescriptions/${id}`, {
-        method: 'DELETE'
+      const response = await fetch(`${doctorApiBase}/prescriptions/${id}`, {
+        method: 'DELETE',
+        headers: authHeader
       });
 
       if (!response.ok) {
@@ -594,10 +600,11 @@ export function DoctorDashboard() {
     setIsSubmittingPrescription(true);
 
     try {
-      const response = await fetch(`${doctorApiBase}/api/prescriptions`, {
+      const response = await fetch(`${doctorApiBase}/prescriptions`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...authHeader
         },
         body: JSON.stringify({
           doctorId,
@@ -1081,43 +1088,94 @@ export function DoctorDashboard() {
                 <h1 className="text-3xl font-bold text-[#1D1D1F] mb-1">
                   Availability
                 </h1>
-                <p className="text-[#86868B]">Your available time slots with dates</p>
+                <p className="text-[#86868B]">Manage and view your available time slots</p>
               </div>
               <AppleButton size="sm" onClick={loadAvailability}>
                 Refresh
               </AppleButton>
             </header>
 
-            <GlassCard className="p-6">
-              {availabilityMessage &&
-              <p className="text-sm text-[#0071E3] mb-3">{availabilityMessage}</p>
-              }
+            <div className="space-y-6">
+              {/* Schedule Editor */}
+              <GlassCard className="p-6">
+                <h2 className="text-lg font-semibold text-[#1D1D1F] mb-4">Weekly Schedule</h2>
+                {availabilityMessage &&
+                <p className="text-sm text-[#0071E3] mb-3">{availabilityMessage}</p>
+                }
+                <div className="space-y-3">
+                  <div className="flex items-center gap-4">
+                    <span className="w-8" />
+                    <div className="flex-1 flex gap-1">
+                      {AVAILABILITY_BLOCKS.map((block) =>
+                      <p key={`header-${block}`} className="text-[11px] font-medium text-[#86868B] text-center flex-1">
+                        {block}
+                      </p>
+                      )}
+                    </div>
+                  </div>
+                  {AVAILABILITY_DAYS.map((day) =>
+                  <div key={day} className="flex items-center gap-4">
+                    <span className="w-8 text-sm font-medium text-[#86868B]">{day}</span>
+                    <div className="flex-1 flex gap-1">
+                      {AVAILABILITY_BLOCKS.map((block) => {
+                        const slot = availabilitySlots.find((item) => item.day === day && item.block === block);
+                        const isAvailable = Boolean(slot?.isAvailable);
+                        return (
+                          <button
+                            key={`${day}-${block}`}
+                            type="button"
+                            onClick={() => toggleAvailabilitySlot(day, block)}
+                            title={block}
+                            className={`h-10 flex-1 rounded-md transition-colors ${isAvailable ? 'bg-[#0071E3] opacity-90 hover:opacity-100' : 'bg-[#F5F5F7] hover:bg-[#D2D2D7]'} ${isEditingAvailability ? 'cursor-pointer' : 'cursor-default'}`}>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  )}
+                </div>
+                <div className="flex gap-4 mt-4 text-xs text-[#86868B]">
+                  <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-[#0071E3]" /> Available</span>
+                  <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-[#F5F5F7] border border-[#D2D2D7]" /> Unavailable</span>
+                </div>
+                <AppleButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleEditSchedule}
+                  disabled={isSavingAvailability}
+                  className="w-full mt-6">
+                  {isEditingAvailability ? isSavingAvailability ? 'Saving...' : 'Save Schedule' : 'Edit Schedule'}
+                </AppleButton>
+              </GlassCard>
 
-              {upcomingAvailabilityDates.length === 0 &&
-              <p className="text-sm text-[#86868B]">No available slots found for the next 14 days.</p>
-              }
-
-              {upcomingAvailabilityDates.length > 0 &&
-              <div className="space-y-4">
+              {/* Upcoming dates view */}
+              <GlassCard className="p-6">
+                <h2 className="text-lg font-semibold text-[#1D1D1F] mb-4">Upcoming Available Slots (Next 14 Days)</h2>
+                {upcomingAvailabilityDates.length === 0 &&
+                <p className="text-sm text-[#86868B]">No available slots found for the next 14 days.</p>
+                }
+                {upcomingAvailabilityDates.length > 0 &&
+                <div className="space-y-4">
                   {upcomingAvailabilityDates.map((item) =>
-                <div key={item.key} className="border border-[#D2D2D7]/60 rounded-xl p-4 bg-white">
+                  <div key={item.key} className="border border-[#D2D2D7]/60 rounded-xl p-4 bg-white">
                     <p className="font-semibold text-[#1D1D1F] mb-2">
                       {item.dayShort}, {item.dateLabel}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {item.availableBlocks.map((block) =>
-                    <span
-                      key={`${item.key}-${block}`}
-                      className="text-xs font-medium px-3 py-1.5 rounded-full bg-[#0071E3]/10 text-[#0071E3]">
-                          {block}
-                        </span>
-                    )}
+                      <span
+                        key={`${item.key}-${block}`}
+                        className="text-xs font-medium px-3 py-1.5 rounded-full bg-[#0071E3]/10 text-[#0071E3]">
+                        {block}
+                      </span>
+                      )}
                     </div>
                   </div>
-                )}
+                  )}
                 </div>
-              }
-            </GlassCard>
+                }
+              </GlassCard>
+            </div>
           </div>
         }
 

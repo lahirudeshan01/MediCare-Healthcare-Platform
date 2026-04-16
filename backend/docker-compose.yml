@@ -1,6 +1,27 @@
 version: '3.8'
 
+# This compose file is for backend-only local development.
+# For the full stack (including frontend), use the root docker-compose.yml.
+
 services:
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: medicare-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - medicare-network
+
   api-gateway:
     build: ./api-gateway
     container_name: medicare-api-gateway
@@ -11,6 +32,8 @@ services:
     depends_on:
       - auth-service
       - ai-symptom-service
+      - doctor-service
+      - telemedicine-service
     networks:
       - medicare-network
 
@@ -21,8 +44,6 @@ services:
       - '3001:3001'
     env_file:
       - ./auth-service/.env
-    depends_on:
-      - mongo-auth
     networks:
       - medicare-network
 
@@ -33,18 +54,37 @@ services:
       - '3002:3002'
     env_file:
       - ./ai-symptom-service/.env
-    depends_on:
-      - mongo-auth
     networks:
       - medicare-network
 
-  mongo-auth:
-    image: mongo:6
-    container_name: medicare-mongo-auth
+  doctor-service:
+    build: ./doctor-service
+    container_name: medicare-doctor-service
     ports:
-      - '27017:27017'
-    volumes:
-      - mongo-auth-data:/data/db
+      - '8082:8082'
+    env_file:
+      - ./doctor-service/.env
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - medicare-network
+
+  telemedicine-service:
+    build: ./telemedicine-service
+    container_name: medicare-telemedicine-service
+    ports:
+      - '8085:8085'
+    env_file:
+      - ./telemedicine-service/.env
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - JITSI_BASE_URL=https://meet.jit.si
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     networks:
       - medicare-network
 

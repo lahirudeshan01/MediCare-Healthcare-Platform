@@ -43,10 +43,13 @@ const buildNextSevenDays = () => {
 export function DoctorProfile() {
   const navigate = useNavigate();
   const days = buildNextSevenDays();
-  const doctorApiBase = import.meta.env.VITE_DOCTOR_API || 'http://localhost:8082';
-  const doctorId = '1'; // Temporary static doctor id until auth is integrated
-  const patientId = 'patient-1'; // Temporary static patient id until auth is integrated
-  const patientName = 'Sarah Johnson'; // Temporary static patient name until auth is integrated
+  const doctorApiBase = import.meta.env.VITE_DOCTOR_API || 'http://localhost:3000';
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const doctorId = '1'; // ID of the doctor being viewed — set from route params or browse page
+  const patientId = currentUser.id || currentUser._id || 'guest';
+  const patientName = currentUser.name || 'Patient';
+  const token = localStorage.getItem('token') || '';
+  const authHeader = { Authorization: `Bearer ${token}` };
   const [selectedDate, setSelectedDate] = useState(days[0].isoDate);
   const [selectedTime, setSelectedTime] = useState('3:00 PM');
   const [consultType, setConsultType] = useState('video');
@@ -66,10 +69,11 @@ export function DoctorProfile() {
 
     setIsBooking(true);
     try {
-      const response = await fetch(`${doctorApiBase}/api/appointments`, {
+      const response = await fetch(`${doctorApiBase}/appointments`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...authHeader
         },
         body: JSON.stringify({
           doctorId,

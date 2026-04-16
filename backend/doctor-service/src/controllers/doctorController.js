@@ -2,6 +2,7 @@ const Doctor = require("../models/Doctor");
 const Availability = require("../models/Availability");
 const Prescription = require("../models/Prescription");
 const Appointment = require("../models/Appointment");
+const { publishAppointmentApproved } = require("../rabbitmq");
 
 const DEFAULT_AVAILABILITY_SLOTS = [
   { day: "Mon", block: "9:00 AM - 12:00 PM", isAvailable: true },
@@ -161,6 +162,16 @@ exports.acceptAppointment = async (req, res) => {
 
     if (!appointment) {
       return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    // Publish RabbitMQ event so telemedicine-service auto-creates a meeting room
+    if (status === "approved" && appointment.consultType === "video") {
+      publishAppointmentApproved({
+        appointmentId: String(appointment._id),
+        doctorId: appointment.doctorId,
+        patientId: appointment.patientId || "",
+        provider: "jitsi"
+      });
     }
 
     return res.json({
