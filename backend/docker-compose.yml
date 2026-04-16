@@ -11,11 +11,8 @@ services:
     depends_on:
       - auth-service
       - ai-symptom-service
-    healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/health']
-      interval: 15s
-      timeout: 5s
-      retries: 3
+    networks:
+      - medicare-network
 
   auth-service:
     build: ./auth-service
@@ -24,11 +21,10 @@ services:
       - '3001:3001'
     env_file:
       - ./auth-service/.env
-    healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3001/health']
-      interval: 15s
-      timeout: 5s
-      retries: 3
+    depends_on:
+      - mongo-auth
+    networks:
+      - medicare-network
 
   ai-symptom-service:
     build: ./ai-symptom-service
@@ -37,8 +33,24 @@ services:
       - '3002:3002'
     env_file:
       - ./ai-symptom-service/.env
-    healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3002/health']
-      interval: 15s
-      timeout: 5s
-      retries: 3
+    depends_on:
+      - mongo-auth
+    networks:
+      - medicare-network
+
+  mongo-auth:
+    image: mongo:6
+    container_name: medicare-mongo-auth
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-auth-data:/data/db
+    networks:
+      - medicare-network
+
+networks:
+  medicare-network:
+    driver: bridge
+
+volumes:
+  mongo-auth-data:

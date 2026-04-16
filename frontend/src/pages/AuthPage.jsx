@@ -29,7 +29,10 @@ export function AuthPage() {
       });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
-      navigate('/dashboard');
+      const role = res.data.user.role;
+      if (role === 'doctor') navigate('/doctor-dashboard');
+      else if (role === 'admin') navigate('/admin');
+      else navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed.');
     } finally {
@@ -50,7 +53,10 @@ export function AuthPage() {
       });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
-      navigate('/dashboard');
+      const role = res.data.user.role;
+      if (role === 'doctor') navigate('/doctor-dashboard');
+      else if (role === 'admin') navigate('/admin');
+      else navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed.');
     } finally {
@@ -441,13 +447,6 @@ export function AuthPage() {
           {tab === 'login' ? 'Register' : 'Sign in'}
         </button>
       </p>
-
-      <button
-        onClick={() => navigate('/admin')}
-        className="mt-4 px-4 py-2 text-xs font-medium text-[#86868B] border border-dashed border-[#D2D2D7] rounded-lg hover:text-[#1D1D1F] hover:border-[#86868B] transition-colors">
-        
-        ⚙️ Admin Dashboard (Dev Only)
-      </button>
     </div>);
 
 }
