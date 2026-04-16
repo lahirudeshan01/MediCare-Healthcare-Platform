@@ -1,34 +1,96 @@
 version: '3.8'
 
 services:
-  patient-service:
-    build: .
-    container_name: patient-service
+  api-gateway:
+    build: ./api-gateway
+    container_name: medicare-api-gateway
     ports:
-      - "5000:5000"
+      - '3000:3000'
+    env_file:
+      - ./api-gateway/.env
     environment:
-      - PORT=5000
-      - MONGODB_URI=mongodb://patient-mongodb:27017/patient_db
-    volumes:
-      - ./uploads:/usr/src/app/uploads
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - AI_SYMPTOM_SERVICE_URL=http://ai-symptom-service:3002
+      - APPOINTMENT_SERVICE_URL=http://appointment-service:3003
+      - PAYMENT_SERVICE_URL=http://payment-service:3004
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3005
     depends_on:
-      - patient-mongodb
-    networks:
-      - patient-network
+      - auth-service
+      - ai-symptom-service
+      - appointment-service
+      - payment-service
+      - notification-service
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
-  patient-mongodb:
-    image: mongo:latest
-    container_name: patient-mongodb
+  auth-service:
+    build: ./auth-service
+    container_name: medicare-auth-service
     ports:
-      - "27017:27017" # Exposed to host if needed, optional
-    volumes:
-      - patient-mongo-data:/data/db
-    networks:
-      - patient-network
+      - '3001:3001'
+    env_file:
+      - ./auth-service/.env
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3001/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
-volumes:
-  patient-mongo-data:
+  ai-symptom-service:
+    build: ./ai-symptom-service
+    container_name: medicare-ai-symptom-service
+    ports:
+      - '3002:3002'
+    env_file:
+      - ./ai-symptom-service/.env
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3002/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
-networks:
-  patient-network:
-    driver: bridge
+  appointment-service:
+    build: ./appointment-service
+    container_name: medicare-appointment-service
+    ports:
+      - '3003:3003'
+    env_file:
+      - ./appointment-service/.env
+    environment:
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3005
+    depends_on:
+      - notification-service
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3003/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  payment-service:
+    build: ./payment-service
+    container_name: medicare-payment-service
+    ports:
+      - '3004:3004'
+    env_file:
+      - ./payment-service/.env
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3004/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  notification-service:
+    build: ./notification-service
+    container_name: medicare-notification-service
+    ports:
+      - '3005:3005'
+    env_file:
+      - ./notification-service/.env
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3005/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
