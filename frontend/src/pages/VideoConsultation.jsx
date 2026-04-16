@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Mic,
   MicOff,
@@ -20,12 +20,75 @@ import { AppleButton } from '../components/ui/AppleButton';
 import { GlassCard } from '../components/ui/GlassCard';
 export function VideoConsultation() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const telemedicineApiBase = import.meta.env.VITE_TELEMEDICINE_API || 'http://localhost:8085';
+
+  const defaultAppointmentId = searchParams.get('appointmentId') || '1001';
+  const defaultDoctorId = searchParams.get('doctorId') || '1';
+  const defaultPatientId = searchParams.get('patientId') || '1';
+
   const [callState, setCallState] = useState('lobby');
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [activePanel, setActivePanel] = useState(null);
   const [duration, setDuration] = useState(0);
   const [rating, setRating] = useState(0);
+  const [appointmentId, setAppointmentId] = useState(defaultAppointmentId);
+  const [doctorId, setDoctorId] = useState(defaultDoctorId);
+  const [patientId, setPatientId] = useState(defaultPatientId);
+  const [provider, setProvider] = useState('jitsi');
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [sessionMessage, setSessionMessage] = useState('');
+  const [sessionData, setSessionData] = useState(null);
+
+  const generateSession = async () => {
+    setSessionMessage('');
+
+    if (!appointmentId || !doctorId || !patientId) {
+      setSessionMessage('Appointment ID, Doctor ID and Patient ID are required.');
+      return null;
+    }
+
+    setIsCreatingSession(true);
+    try {
+      const response = await fetch(`${telemedicineApiBase}/telemedicine/sessions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          appointmentId: String(appointmentId),
+          doctorId: String(doctorId),
+          patientId: String(patientId),
+          provider
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.message || 'Failed to generate session');
+      }
+
+      setSessionData(result.data);
+      setSessionMessage(result.message || 'Session generated successfully.');
+      return result.data;
+    } catch (error) {
+      setSessionMessage(error.message || 'Failed to generate session.');
+      return null;
+    } finally {
+      setIsCreatingSession(false);
+    }
+  };
+
+  const handleJoinWebClient = async () => {
+    const session = sessionData || await generateSession();
+    if (!session?.meetingUrl) {
+      return;
+    }
+
+    window.open(session.meetingUrl, '_blank', 'noopener,noreferrer');
+    setCallState('active');
+  };
   useEffect(() => {
     let interval;
     if (callState === 'active') {
@@ -95,22 +158,79 @@ export function VideoConsultation() {
 
         <h2 className="text-2xl font-semibold mb-2">Ready to join?</h2>
         <p className="text-[#86868B] mb-8">
-          You're about to join a consultation with Dr. Kumara Perera
+          Generate a meeting room, share the link with doctor + patient, then join via web client.
         </p>
+
+        <div className="w-full max-w-xl grid grid-cols-1 md:grid-cols-2 gap-3 mb-6 text-left">
+          <div>
+            <label className="block text-xs font-medium text-[#86868B] mb-1">Appointment ID</label>
+            <input
+              type="number"
+              value={appointmentId}
+              onChange={(e) => setAppointmentId(e.target.value)}
+              className="w-full bg-[#F5F5F7] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-[#0071E3]" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[#86868B] mb-1">Provider</label>
+            <select
+              value={provider}
+              onChange={(e) => setProvider(e.target.value)}
+              className="w-full bg-[#F5F5F7] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-[#0071E3]">
+              <option value="jitsi">Jitsi Meet (recommended)</option>
+              <option value="agora">Agora</option>
+              <option value="twilio">Twilio</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[#86868B] mb-1">Doctor ID</label>
+            <input
+              type="number"
+              value={doctorId}
+              onChange={(e) => setDoctorId(e.target.value)}
+              className="w-full bg-[#F5F5F7] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-[#0071E3]" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[#86868B] mb-1">Patient ID</label>
+            <input
+              type="number"
+              value={patientId}
+              onChange={(e) => setPatientId(e.target.value)}
+              className="w-full bg-[#F5F5F7] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-[#0071E3]" />
+          </div>
+        </div>
+
+        {sessionMessage &&
+        <p className="text-sm text-[#0071E3] mb-3">{sessionMessage}</p>
+        }
+
+        {sessionData?.meetingUrl &&
+        <div className="w-full max-w-xl bg-[#F5F5F7] rounded-xl p-4 mb-6 text-left">
+            <p className="text-xs font-semibold text-[#1D1D1F] mb-1">Meeting URL</p>
+            <p className="text-xs break-all text-[#0071E3] mb-3">{sessionData.meetingUrl}</p>
+            <p className="text-xs font-semibold text-[#1D1D1F] mb-1">Delivery Log</p>
+            <ul className="space-y-1 text-xs text-[#86868B]">
+              {(sessionData.deliveryLog || []).map((item, index) =>
+              <li key={`${item.recipientType}-${index}`}>
+                  {item.recipientType}: {item.status} via {item.channel}
+                </li>
+              )}
+            </ul>
+          </div>
+        }
 
         <div className="flex gap-4 w-full max-w-md">
           <AppleButton
           variant="secondary"
           className="flex-1"
+          onClick={generateSession}
+          disabled={isCreatingSession}
           icon={<Settings className="w-4 h-4" />}>
-          
-            Test Audio
+            {isCreatingSession ? 'Generating...' : 'Generate Room'}
           </AppleButton>
           <AppleButton
           className="flex-1"
-          onClick={() => setCallState('active')}>
-          
-            Join Consultation
+          onClick={handleJoinWebClient}>
+            Join Web Client
           </AppleButton>
         </div>
       </GlassCard>
@@ -140,6 +260,11 @@ export function VideoConsultation() {
           <span className="text-white font-medium text-sm border-l border-white/20 pl-3 ml-1">
             {formatTime(duration)}
           </span>
+          {sessionData?.provider &&
+          <span className="text-white/80 text-xs border-l border-white/20 pl-3 ml-1 uppercase">
+              {sessionData.provider}
+            </span>
+          }
         </div>
       </div>
 

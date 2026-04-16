@@ -24,44 +24,75 @@ const TIME_SLOTS = [
 '3:30 PM',
 '4:00 PM'];
 
-const DAYS = [
-{
-  day: 'Mon',
-  date: '24'
-},
-{
-  day: 'Tue',
-  date: '25'
-},
-{
-  day: 'Wed',
-  date: '26'
-},
-{
-  day: 'Thu',
-  date: '27'
-},
-{
-  day: 'Fri',
-  date: '28'
-},
-{
-  day: 'Sat',
-  date: '29'
-},
-{
-  day: 'Sun',
-  date: '30'
-}];
+const buildNextSevenDays = () => {
+  const today = new Date();
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() + index);
+
+    return {
+      day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+      dateLabel: date.toLocaleDateString('en-US', { day: '2-digit' }),
+      isoDate: date.toISOString().slice(0, 10),
+      displayDate: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    };
+  });
+};
 
 export function DoctorProfile() {
   const navigate = useNavigate();
-  const [selectedDate, setSelectedDate] = useState('24');
+  const days = buildNextSevenDays();
+  const doctorApiBase = import.meta.env.VITE_DOCTOR_API || 'http://localhost:8082';
+  const doctorId = '1'; // Temporary static doctor id until auth is integrated
+  const patientId = 'patient-1'; // Temporary static patient id until auth is integrated
+  const patientName = 'Sarah Johnson'; // Temporary static patient name until auth is integrated
+  const [selectedDate, setSelectedDate] = useState(days[0].isoDate);
   const [selectedTime, setSelectedTime] = useState('3:00 PM');
   const [consultType, setConsultType] = useState('video');
+  const [appointmentReason, setAppointmentReason] = useState('');
+  const [isBooking, setIsBooking] = useState(false);
+  const [bookingMessage, setBookingMessage] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const handleBook = () => {
-    setShowModal(true);
+  const selectedDateDetails = days.find((d) => d.isoDate === selectedDate) || days[0];
+
+  const handleBook = async () => {
+    setBookingMessage('');
+
+    if (!appointmentReason.trim()) {
+      setBookingMessage('Please add your reason for this appointment request.');
+      return;
+    }
+
+    setIsBooking(true);
+    try {
+      const response = await fetch(`${doctorApiBase}/api/appointments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          doctorId,
+          patientId,
+          patientName,
+          reason: appointmentReason.trim(),
+          appointmentDate: selectedDate,
+          appointmentTime: selectedTime,
+          consultType
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send appointment request');
+      }
+
+      setShowModal(true);
+      setAppointmentReason('');
+    } catch (_error) {
+      setBookingMessage('Failed to send request. Please try again.');
+    } finally {
+      setIsBooking(false);
+    }
   };
   return (
     <div className="min-h-screen bg-[#F5F5F7] font-['Inter',system-ui,sans-serif] text-[#1D1D1F] pb-32 md:pb-8">
@@ -160,18 +191,18 @@ export function DoctorProfile() {
           <GlassCard className="p-6">
             {/* Date Selector */}
             <div className="flex overflow-x-auto gap-3 pb-4 no-scrollbar mb-6">
-              {DAYS.map((d) =>
+              {days.map((d) =>
               <button
-                key={d.date}
-                onClick={() => setSelectedDate(d.date)}
-                className={`flex flex-col items-center justify-center min-w-[4rem] py-3 rounded-2xl transition-colors border ${selectedDate === d.date ? 'bg-[#0071E3] text-white border-[#0071E3]' : 'bg-white text-[#1D1D1F] border-[#D2D2D7]/50 hover:border-[#0071E3]'}`}>
+                key={d.isoDate}
+                onClick={() => setSelectedDate(d.isoDate)}
+                className={`flex flex-col items-center justify-center min-w-[4rem] py-3 rounded-2xl transition-colors border ${selectedDate === d.isoDate ? 'bg-[#0071E3] text-white border-[#0071E3]' : 'bg-white text-[#1D1D1F] border-[#D2D2D7]/50 hover:border-[#0071E3]'}`}>
                 
                   <span
-                  className={`text-xs font-medium mb-1 ${selectedDate === d.date ? 'text-white/80' : 'text-[#86868B]'}`}>
+                  className={`text-xs font-medium mb-1 ${selectedDate === d.isoDate ? 'text-white/80' : 'text-[#86868B]'}`}>
                   
                     {d.day}
                   </span>
-                  <span className="text-lg font-semibold">{d.date}</span>
+                  <span className="text-lg font-semibold">{d.dateLabel}</span>
                 </button>
               )}
             </div>
@@ -229,6 +260,18 @@ export function DoctorProfile() {
                 </div>
               </button>
             </div>
+
+            <div className="mt-6">
+              <h3 className="text-sm font-semibold text-[#86868B] uppercase tracking-wider mb-3">
+                Appointment Reason
+              </h3>
+              <textarea
+                rows={3}
+                value={appointmentReason}
+                onChange={(e) => setAppointmentReason(e.target.value)}
+                placeholder="Describe your symptoms or reason for consultation"
+                className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3] resize-none" />
+            </div>
           </GlassCard>
         </section>
 
@@ -280,7 +323,7 @@ export function DoctorProfile() {
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-center sm:text-left w-full sm:w-auto">
             <p className="text-sm text-[#86868B] mb-0.5">
-              Oct {selectedDate}, {selectedTime} •{' '}
+              {selectedDateDetails.displayDate}, {selectedTime} •{' '}
               {consultType === 'video' ? 'Video' : 'In-Person'}
             </p>
             <p className="font-semibold text-lg">
@@ -290,11 +333,14 @@ export function DoctorProfile() {
           <AppleButton
             size="lg"
             className="w-full sm:w-auto px-12"
+            disabled={isBooking}
             onClick={handleBook}>
-            
-            Confirm Booking
+            {isBooking ? 'Sending Request...' : 'Confirm Booking'}
           </AppleButton>
         </div>
+        {bookingMessage &&
+        <p className="max-w-4xl mx-auto mt-3 text-sm text-[#0071E3] px-1">{bookingMessage}</p>
+        }
       </div>
 
       {/* Booking Confirmation Modal */}
@@ -370,7 +416,7 @@ export function DoctorProfile() {
                 <div className="flex justify-between">
                   <span className="text-[#86868B]">Date & Time</span>
                   <span className="font-medium">
-                    Oct {selectedDate}, {selectedTime}
+                    {selectedDateDetails.displayDate}, {selectedTime}
                   </span>
                 </div>
                 <div className="flex justify-between">

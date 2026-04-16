@@ -4,6 +4,12 @@
 
 # Dependencies
 node_modules/
+**/node_modules/
+
+# Local databases
+backend/**/*.db
+backend/**/*.db-shm
+backend/**/*.db-wal
 
 # OS files
 .DS_Store
