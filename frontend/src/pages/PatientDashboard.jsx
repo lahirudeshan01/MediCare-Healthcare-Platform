@@ -43,6 +43,42 @@ const COMMON_SYMPTOMS = [
 
 export function PatientDashboard() {
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userName = user.name || 'there';
+  const userEmail = user.email || '';
+  const userFirstName = userName.split(' ')[0];
+  const userInitials = userName
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || 'P';
+
+  // Profile data stored per-user in localStorage
+  const profileKey = `patientProfile_${user.id || user.email}`;
+  const loadProfile = () => {
+    try { return JSON.parse(localStorage.getItem(profileKey) || '{}'); } catch { return {}; }
+  };
+  const [profile, setProfile] = useState(() => loadProfile());
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  const handleProfileChange = (field, value) => {
+    setProfile((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveProfile = () => {
+    localStorage.setItem(profileKey, JSON.stringify(profile));
+    setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 2500);
+  };
+
+  // Derived display values for profile header
+  const displayAge = () => {
+    if (!profile.dob) return null;
+    const diff = new Date() - new Date(profile.dob);
+    return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
+  };
+
   const [activeSection, setActiveSection] = useState('dashboard');
   // Appointments State
   const [aptFilter, setAptFilter] = useState('Upcoming');
@@ -55,7 +91,7 @@ export function PatientDashboard() {
     id: '1',
     type: 'ai',
     content:
-    "Hi Sarah 👋 I'm your AI health assistant. Tell me about your symptoms and I'll provide preliminary guidance. Remember, this isn't a substitute for professional medical advice."
+    `Hi ${userName.split(' ')[0]} 👋 I'm your AI health assistant. Tell me about your symptoms and I'll provide preliminary guidance. Remember, this isn't a substitute for professional medical advice.`
   }]
   );
   // Profile State
@@ -271,7 +307,7 @@ export function PatientDashboard() {
         <div>
           <p className="text-[#86868B] font-medium mb-1">Thursday, Oct 24</p>
           <h1 className="text-3xl font-semibold tracking-tight">
-            Good morning, Sarah
+            Good morning, {userFirstName}
           </h1>
         </div>
         <button className="w-10 h-10 rounded-full bg-white border border-[#D2D2D7]/50 flex items-center justify-center text-[#1D1D1F] hover:bg-[#F5F5F7] transition-colors relative">
@@ -789,25 +825,33 @@ export function PatientDashboard() {
   const renderProfileHeader = () =>
   <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-10">
       <div className="w-24 h-24 rounded-full bg-[#0071E3] text-white flex items-center justify-center text-3xl font-semibold shadow-md">
-        SK
+        {userInitials}
       </div>
       <div className="flex-1">
         <h1 className="text-3xl font-bold text-[#1D1D1F] mb-2">
-          Sarah Karunaratne
+          {userName}
         </h1>
         <div className="flex flex-wrap gap-2 mb-3">
-          <span className="px-3 py-1 bg-white rounded-full text-sm font-medium border border-[#D2D2D7]/50">
-            Age 28
-          </span>
-          <span className="px-3 py-1 bg-white rounded-full text-sm font-medium border border-[#D2D2D7]/50">
-            Blood Type O+
-          </span>
-          <span className="px-3 py-1 bg-white rounded-full text-sm font-medium border border-[#D2D2D7]/50">
-            Female
-          </span>
-          <span className="px-3 py-1 bg-[#FF3B30]/10 text-[#FF3B30] rounded-full text-sm font-medium">
-            Allergies: Penicillin, Shellfish
-          </span>
+          {displayAge() !== null &&
+            <span className="px-3 py-1 bg-white rounded-full text-sm font-medium border border-[#D2D2D7]/50">
+              Age {displayAge()}
+            </span>
+          }
+          {profile.bloodType &&
+            <span className="px-3 py-1 bg-white rounded-full text-sm font-medium border border-[#D2D2D7]/50">
+              Blood Type {profile.bloodType}
+            </span>
+          }
+          {profile.gender &&
+            <span className="px-3 py-1 bg-white rounded-full text-sm font-medium border border-[#D2D2D7]/50">
+              {profile.gender}
+            </span>
+          }
+          {profile.allergies &&
+            <span className="px-3 py-1 bg-[#FF3B30]/10 text-[#FF3B30] rounded-full text-sm font-medium">
+              Allergies: {profile.allergies}
+            </span>
+          }
         </div>
       </div>
     </div>;
@@ -1002,54 +1046,53 @@ export function PatientDashboard() {
             <h3 className="text-xl font-semibold mb-6">Personal Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-[#86868B] mb-2">
-                  Full Name
-                </label>
-                <input
-              type="text"
-              defaultValue="Sarah Karunaratne"
-              className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]" />
-            
+                <label className="block text-sm font-medium text-[#86868B] mb-2">Full Name</label>
+                <input type="text" value={userName} readOnly
+                  className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none text-[#86868B] cursor-not-allowed" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#86868B] mb-2">
-                  Email
-                </label>
-                <input
-              type="email"
-              defaultValue="sarah.k@example.com"
-              className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]" />
-            
+                <label className="block text-sm font-medium text-[#86868B] mb-2">Email</label>
+                <input type="email" value={userEmail} readOnly
+                  className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none text-[#86868B] cursor-not-allowed" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#86868B] mb-2">
-                  Phone
-                </label>
-                <input
-              type="tel"
-              defaultValue="+94 77 123 4567"
-              className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]" />
-            
+                <label className="block text-sm font-medium text-[#86868B] mb-2">Phone</label>
+                <input type="tel" value={profile.phone || ''} onChange={(e) => handleProfileChange('phone', e.target.value)} placeholder="+94 77 000 0000"
+                  className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#86868B] mb-2">
-                  Date of Birth
-                </label>
-                <input
-              type="date"
-              defaultValue="1998-05-15"
-              className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]" />
-            
+                <label className="block text-sm font-medium text-[#86868B] mb-2">Date of Birth</label>
+                <input type="date" value={profile.dob || ''} onChange={(e) => handleProfileChange('dob', e.target.value)}
+                  className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#86868B] mb-2">Gender</label>
+                <select value={profile.gender || ''} onChange={(e) => handleProfileChange('gender', e.target.value)}
+                  className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]">
+                  <option value="">Select gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                  <option value="Prefer not to say">Prefer not to say</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#86868B] mb-2">Blood Type</label>
+                <select value={profile.bloodType || ''} onChange={(e) => handleProfileChange('bloodType', e.target.value)}
+                  className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]">
+                  <option value="">Select blood type</option>
+                  {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-[#86868B] mb-2">
-                  Address
-                </label>
-                <input
-              type="text"
-              defaultValue="123 Galle Road, Colombo 03"
-              className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]" />
-            
+                <label className="block text-sm font-medium text-[#86868B] mb-2">Address</label>
+                <input type="text" value={profile.address || ''} onChange={(e) => handleProfileChange('address', e.target.value)} placeholder="Your address"
+                  className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-[#86868B] mb-2">Allergies <span className="text-xs font-normal">(comma-separated)</span></label>
+                <input type="text" value={profile.allergies || ''} onChange={(e) => handleProfileChange('allergies', e.target.value)} placeholder="e.g. Penicillin, Pollen"
+                  className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]" />
               </div>
             </div>
           </GlassCard>
@@ -1057,39 +1100,25 @@ export function PatientDashboard() {
             <h3 className="text-xl font-semibold mb-6">Emergency Contact</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-[#86868B] mb-2">
-                  Name
-                </label>
-                <input
-              type="text"
-              defaultValue="Ruwan Karunaratne"
-              className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]" />
-            
+                <label className="block text-sm font-medium text-[#86868B] mb-2">Name</label>
+                <input type="text" value={profile.emergencyName || ''} onChange={(e) => handleProfileChange('emergencyName', e.target.value)} placeholder="Emergency contact name"
+                  className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#86868B] mb-2">
-                  Relationship
-                </label>
-                <input
-              type="text"
-              defaultValue="Spouse"
-              className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]" />
-            
+                <label className="block text-sm font-medium text-[#86868B] mb-2">Relationship</label>
+                <input type="text" value={profile.emergencyRelationship || ''} onChange={(e) => handleProfileChange('emergencyRelationship', e.target.value)} placeholder="e.g. Spouse, Parent"
+                  className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#86868B] mb-2">
-                  Phone
-                </label>
-                <input
-              type="tel"
-              defaultValue="+94 71 987 6543"
-              className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]" />
-            
+                <label className="block text-sm font-medium text-[#86868B] mb-2">Phone</label>
+                <input type="tel" value={profile.emergencyPhone || ''} onChange={(e) => handleProfileChange('emergencyPhone', e.target.value)} placeholder="+94 71 000 0000"
+                  className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3]" />
               </div>
             </div>
           </GlassCard>
-          <div className="flex justify-end">
-            <AppleButton size="lg">Save Changes</AppleButton>
+          <div className="flex justify-end items-center gap-4">
+            {profileSaved && <span className="text-[#30D158] text-sm font-medium">Profile saved!</span>}
+            <AppleButton size="lg" onClick={handleSaveProfile}>Save Changes</AppleButton>
           </div>
         </div> :
 

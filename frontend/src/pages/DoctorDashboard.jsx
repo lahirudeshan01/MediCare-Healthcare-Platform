@@ -21,6 +21,14 @@ import { GlassCard } from '../components/ui/GlassCard';
 import { StatusBadge } from '../components/ui/StatusBadge';
 export function DoctorDashboard() {
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userName = user.name || 'Doctor';
+  const userInitials = userName
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || 'DR';
   const [medications, setMedications] = useState([
   {
     id: 1,
@@ -121,7 +129,7 @@ export function DoctorDashboard() {
         <header className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-[#1D1D1F] mb-1">
-              Welcome back, Dr. Perera
+              Welcome back, Dr. {userName.split(' ').slice(-1)[0]}
             </h1>
             <p className="text-[#86868B]">
               Today is{' '}
@@ -133,7 +141,7 @@ export function DoctorDashboard() {
             </p>
           </div>
           <div className="w-12 h-12 rounded-full bg-[#0071E3] text-white flex items-center justify-center text-lg font-semibold shadow-sm">
-            KP
+            {userInitials}
           </div>
         </header>
 
