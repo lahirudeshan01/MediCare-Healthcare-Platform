@@ -45,6 +45,8 @@ router.post(
   upload.single("slip"),
   paymentController.uploadPaymentSlip,
 );
+// Health check -> GET /payments/health
+router.get("/health", (_req, res) => res.json({ status: "ok", service: "payment-service" }));
 router.get("/", paymentController.getAllPayments);
 router.patch("/:paymentId/approve", paymentController.approvePaymentSlip);
 router.patch("/:paymentId/reject", paymentController.rejectPaymentSlip);

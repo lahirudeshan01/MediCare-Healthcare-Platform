@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Star, MapPin, Video } from "lucide-react";
+import { ArrowLeft, Star, Search } from "lucide-react";
 import { SearchBar } from "../components/ui/SearchBar";
 import { GlassCard } from "../components/ui/GlassCard";
 import { AppleButton } from "../components/ui/AppleButton";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { API_GATEWAY } from "../config/api";
+
 const SPECIALTIES = [
   "All",
   "Cardiologist",
@@ -18,115 +20,65 @@ const SPECIALTIES = [
   "ENT",
 ];
 
-const DOCTORS = [
-  {
-    id: "1",
-    name: "Dr. Kumara Perera",
-    specialty: "Cardiologist",
-    rating: 4.9,
-    reviews: 248,
-    experience: "15 yrs",
-    fee: "Rs. 3,000",
-    status: "online",
-    color: "bg-blue-100 text-blue-600",
-    initials: "KP",
-  },
-  {
-    id: "2",
-    name: "Dr. Nishani Fernando",
-    specialty: "Dermatologist",
-    rating: 4.8,
-    reviews: 186,
-    experience: "10 yrs",
-    fee: "Rs. 2,500",
-    status: "online",
-    color: "bg-pink-100 text-pink-600",
-    initials: "NF",
-  },
-  {
-    id: "3",
-    name: "Dr. Rajith Silva",
-    specialty: "Neurologist",
-    rating: 4.7,
-    reviews: 312,
-    experience: "20 yrs",
-    fee: "Rs. 3,500",
-    status: "offline",
-    color: "bg-purple-100 text-purple-600",
-    initials: "RS",
-  },
-  {
-    id: "4",
-    name: "Dr. Amaya Jayawardena",
-    specialty: "Pediatrician",
-    rating: 4.9,
-    reviews: 420,
-    experience: "8 yrs",
-    fee: "Rs. 2,000",
-    status: "online",
-    color: "bg-green-100 text-green-600",
-    initials: "AJ",
-  },
-  {
-    id: "5",
-    name: "Dr. Dinesh Wickramasinghe",
-    specialty: "Orthopedic",
-    rating: 4.6,
-    reviews: 156,
-    experience: "18 yrs",
-    fee: "Rs. 3,000",
-    status: "offline",
-    color: "bg-orange-100 text-orange-600",
-    initials: "DW",
-  },
-  {
-    id: "6",
-    name: "Dr. Sachini Ratnayake",
-    specialty: "Psychiatrist",
-    rating: 4.8,
-    reviews: 204,
-    experience: "12 yrs",
-    fee: "Rs. 2,800",
-    status: "online",
-    color: "bg-teal-100 text-teal-600",
-    initials: "SR",
-  },
-  {
-    id: "7",
-    name: "Dr. Tharuka Bandara",
-    specialty: "General Physician",
-    rating: 4.5,
-    reviews: 89,
-    experience: "6 yrs",
-    fee: "Rs. 1,500",
-    status: "online",
-    color: "bg-indigo-100 text-indigo-600",
-    initials: "TB",
-  },
-  {
-    id: "8",
-    name: "Dr. Malini Gunawardena",
-    specialty: "ENT",
-    rating: 4.7,
-    reviews: 178,
-    experience: "14 yrs",
-    fee: "Rs. 2,500",
-    status: "offline",
-    color: "bg-rose-100 text-rose-600",
-    initials: "MG",
-  },
+const AVATAR_COLORS = [
+  "bg-blue-100 text-blue-600",
+  "bg-pink-100 text-pink-600",
+  "bg-purple-100 text-purple-600",
+  "bg-green-100 text-green-600",
+  "bg-orange-100 text-orange-600",
+  "bg-teal-100 text-teal-600",
+  "bg-indigo-100 text-indigo-600",
+  "bg-rose-100 text-rose-600",
 ];
+
+function getInitials(name = "") {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase())
+    .slice(0, 2)
+    .join("");
+}
+
+function getColor(name = "") {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + hash * 31;
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
 
 export function DoctorBrowse() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSpecialty, setActiveSpecialty] = useState("All");
-  const filteredDoctors = DOCTORS.filter((doc) => {
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`${API_GATEWAY}/auth/doctors`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load doctors");
+        return res.json();
+      })
+      .then((data) => {
+        setDoctors(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
+  const filteredDoctors = doctors.filter((doc) => {
+    const specialty = doc.specialization || "";
     const matchesSearch =
-      doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.specialty.toLowerCase().includes(searchQuery.toLowerCase());
+      (doc.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      specialty.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSpecialty =
-      activeSpecialty === "All" || doc.specialty === activeSpecialty;
+      activeSpecialty === "All" ||
+      specialty.toLowerCase() === activeSpecialty.toLowerCase();
     return matchesSearch && matchesSpecialty;
   });
   return (
@@ -174,121 +126,112 @@ export function DoctorBrowse() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <p className="text-[#86868B] font-medium">
-            {filteredDoctors.length} doctors found
-          </p>
-          <select className="bg-transparent text-sm font-medium text-[#1D1D1F] outline-none cursor-pointer">
-            <option>Sort by: Recommended</option>
-            <option>Rating: High to Low</option>
-            <option>Price: Low to High</option>
-            <option>Availability</option>
-          </select>
-        </div>
-
-        <motion.div layout className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredDoctors.map((doctor, index) => (
-            <motion.div
-              key={doctor.id}
-              layout
-              initial={{
-                opacity: 0,
-                y: 20,
-              }}
-              animate={{
-                opacity: 1,
-                y: 0,
-              }}
-              transition={{
-                delay: index * 0.05,
-                type: "spring",
-                stiffness: 300,
-                damping: 30,
-              }}
-            >
-              <GlassCard hover className="p-6 flex flex-col sm:flex-row gap-6">
-                <div className="flex items-start justify-between sm:block">
-                  <div
-                    className={`w-16 h-16 rounded-full ${doctor.color} flex items-center justify-center font-bold text-xl shrink-0`}
-                  >
-                    {doctor.initials}
-                  </div>
-                  <div className="sm:hidden">
-                    <StatusBadge status={doctor.status} />
-                  </div>
-                </div>
-
-                <div className="flex-1">
-                  <div className="flex justify-between items-start mb-1">
-                    <h3 className="text-xl font-semibold">{doctor.name}</h3>
-                    <div className="hidden sm:block">
-                      <StatusBadge status={doctor.status} />
-                    </div>
-                  </div>
-                  <p className="text-[#86868B] mb-3">{doctor.specialty}</p>
-
-                  <div className="flex flex-wrap items-center gap-4 text-sm mb-4">
-                    <div className="flex items-center text-[#1D1D1F] font-medium">
-                      <Star className="w-4 h-4 text-[#FF9F0A] fill-[#FF9F0A] mr-1" />
-                      {doctor.rating}{" "}
-                      <span className="text-[#86868B] font-normal ml-1">
-                        ({doctor.reviews})
-                      </span>
-                    </div>
-                    <div className="text-[#86868B]">•</div>
-                    <div className="text-[#1D1D1F]">
-                      {doctor.experience} experience
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-[#D2D2D7]/50">
-                    <div>
-                      <p className="text-sm text-[#86868B] mb-0.5">
-                        Consultation Fee
-                      </p>
-                      <p className="font-semibold">{doctor.fee}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-[#86868B] mb-0.5">
-                        Next available
-                      </p>
-                      <p className="text-[#30D158] font-medium text-sm">
-                        Today, 3:00 PM
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 flex gap-3">
-                    <AppleButton
-                      className="flex-1"
-                      onClick={() =>
-                        navigate(`/doctor/${doctor.id}`, {
-                          state: {
-                            doctor,
-                          },
-                        })
-                      }
-                    >
-                      Book Appointment
-                    </AppleButton>
-                  </div>
-                </div>
-              </GlassCard>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {filteredDoctors.length === 0 && (
-          <div className="text-center py-20">
-            <div className="w-16 h-16 rounded-full bg-[#F5F5F7] flex items-center justify-center mx-auto mb-4">
-              <Search className="w-8 h-8 text-[#86868B]" />
+        {loading && (
+          <div className="text-center py-20 text-[#86868B]">Loading doctors...</div>
+        )}
+        {error && (
+          <div className="text-center py-20 text-red-500">{error}</div>
+        )}
+        {!loading && !error && (
+          <>
+            <div className="flex justify-between items-center mb-6">
+              <p className="text-[#86868B] font-medium">
+                {filteredDoctors.length} doctors found
+              </p>
             </div>
-            <h3 className="text-xl font-semibold mb-2">No doctors found</h3>
-            <p className="text-[#86868B]">
-              Try adjusting your search or filters to find what you're looking
-              for.
-            </p>
-          </div>
+
+            <motion.div layout className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredDoctors.map((doctor, index) => {
+                const initials = getInitials(doctor.name);
+                const color = getColor(doctor.name);
+                const fee = doctor.consultationFee
+                  ? `Rs. ${doctor.consultationFee.toLocaleString()}`
+                  : "—";
+                return (
+                  <motion.div
+                    key={doctor._id}
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      delay: index * 0.05,
+                      type: "spring",
+                      stiffness: 300,
+                      damping: 30,
+                    }}
+                  >
+                    <GlassCard hover className="p-6 flex flex-col sm:flex-row gap-6">
+                      <div className="flex items-start justify-between sm:block">
+                        <div
+                          className={`w-16 h-16 rounded-full ${color} flex items-center justify-center font-bold text-xl shrink-0`}
+                        >
+                          {initials}
+                        </div>
+                        <div className="sm:hidden">
+                          <StatusBadge status="online" />
+                        </div>
+                      </div>
+
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start mb-1">
+                          <h3 className="text-xl font-semibold">{doctor.name}</h3>
+                          <div className="hidden sm:block">
+                            <StatusBadge status="online" />
+                          </div>
+                        </div>
+                        <p className="text-[#86868B] mb-3">
+                          {doctor.specialization}
+                        </p>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-[#D2D2D7]/50">
+                          <div>
+                            <p className="text-sm text-[#86868B] mb-0.5">
+                              Consultation Fee
+                            </p>
+                            <p className="font-semibold">{fee}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-[#86868B] mb-0.5">
+                              Status
+                            </p>
+                            <p className="text-[#30D158] font-medium text-sm">
+                              Available
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 flex gap-3">
+                          <AppleButton
+                            className="flex-1"
+                            onClick={() =>
+                              navigate(`/doctor/${doctor._id}`, {
+                                state: { doctor },
+                              })
+                            }
+                          >
+                            Book Appointment
+                          </AppleButton>
+                        </div>
+                      </div>
+                    </GlassCard>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+
+            {filteredDoctors.length === 0 && (
+              <div className="text-center py-20">
+                <div className="w-16 h-16 rounded-full bg-[#F5F5F7] flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-8 h-8 text-[#86868B]" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">No doctors found</h3>
+                <p className="text-[#86868B]">
+                  Try adjusting your search or filters to find what you're looking
+                  for.
+                </p>
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>

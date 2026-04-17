@@ -23,18 +23,17 @@ app.use(limiter);
 // Add new services here as team members merge their work.
 // Each entry: route prefix → target service URL
 const services = {
-  "/auth": process.env.AUTH_SERVICE_URL || "http://localhost:3001",
-  "/ai": process.env.AI_SYMPTOM_SERVICE_URL || "http://localhost:3002",
-  "/appointments":
-    process.env.APPOINTMENT_SERVICE_URL || "http://localhost:3003",
-  "/payments": process.env.PAYMENT_SERVICE_URL || "http://localhost:3004",
-  "/notifications":
-    process.env.NOTIFICATION_SERVICE_URL || "http://localhost:3005",
-  "/patients": process.env.PATIENT_SERVICE_URL || "http://localhost:3006",
-  "/uploads": process.env.PATIENT_SERVICE_URL || "http://localhost:3006",
-
-  // ── Future services (uncomment when ready) ────────────
-  // '/doctors':      process.env.DOCTOR_SERVICE_URL      || 'http://localhost:3004',
+  "/auth":           process.env.AUTH_SERVICE_URL          || "http://localhost:3001",
+  "/ai":             process.env.AI_SYMPTOM_SERVICE_URL    || "http://localhost:3002",
+  "/appointments":   process.env.APPOINTMENT_SERVICE_URL   || "http://localhost:3003",
+  "/payments":       process.env.PAYMENT_SERVICE_URL       || "http://localhost:3004",
+  "/notifications":  process.env.NOTIFICATION_SERVICE_URL  || "http://localhost:3005",
+  "/patients":       process.env.PATIENT_SERVICE_URL       || "http://localhost:3006",
+  "/uploads":        process.env.PATIENT_SERVICE_URL       || "http://localhost:3006",
+  "/doctors":        process.env.DOCTOR_SERVICE_URL        || "http://localhost:8082",
+  "/prescriptions":  process.env.DOCTOR_SERVICE_URL        || "http://localhost:8082",
+  "/telemedicine":   process.env.TELEMEDICINE_SERVICE_URL  || "http://localhost:8085",
+  "/create-meeting": process.env.TELEMEDICINE_SERVICE_URL  || "http://localhost:8085",
 };
 
 // ── Health Check ────────────────────────────────────────

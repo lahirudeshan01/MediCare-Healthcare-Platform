@@ -23,6 +23,14 @@ const userSchema = new mongoose.Schema({
     enum: ['patient', 'doctor', 'admin'],
     default: 'patient',
   },
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
+  isVerified: {
+    type: Boolean,
+    default: true, // false for new doctor registrations until admin approves
+  },
   createdAt: {
     type: Date,
     default: Date.now,

@@ -1,10 +1,13 @@
 // API Gateway — all requests go through a single entry point
-export const API_GATEWAY = "http://localhost:3000";
+export const API_GATEWAY = import.meta.env.VITE_API_GATEWAY || "http://localhost:3000";
 
 // Service routes (proxied through gateway)
 export const AUTH_SERVICE = API_GATEWAY;
 export const AI_SERVICE = API_GATEWAY;
 export const APPOINTMENT_SERVICE = API_GATEWAY;
+export const DOCTOR_SERVICE = API_GATEWAY;      // /doctors, /appointments, /prescriptions
+export const TELEMEDICINE_SERVICE = API_GATEWAY; // /telemedicine
+
 export const APPOINTMENT_ROUTES = {
   base: `${APPOINTMENT_SERVICE}/appointments`,
   byPatient: (patientId) =>
@@ -49,7 +52,3 @@ export const PATIENT_ROUTES = {
   deleteReport: (patientId, reportId) =>
     `${PATIENT_SERVICE}/patients/${encodeURIComponent(patientId)}/reports/${encodeURIComponent(reportId)}`,
 };
-
-// Future services (same gateway, different route prefixes)
-// export const DOCTOR_SERVICE = API_GATEWAY;
-// export const NOTIFICATION_SERVICE = API_GATEWAY;

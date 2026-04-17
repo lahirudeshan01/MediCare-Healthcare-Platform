@@ -30,6 +30,9 @@ router.patch(
   appointmentController.rejectPaymentAndCancel,
 );
 
+// Health check -> GET /appointments/health
+router.get("/health", (_req, res) => res.json({ status: "ok", service: "appointment-service" }));
+
 // Get appointment -> GET /appointments/{id}
 router.get("/:id", appointmentController.getAppointment);
 
