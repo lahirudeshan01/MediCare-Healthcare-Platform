@@ -29,6 +29,7 @@ import {
 import { GlassCard } from "../components/ui/GlassCard";
 import { AppleButton } from "../components/ui/AppleButton";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { MedicalReportsPanel } from "../components/MedicalReportsPanel";
 import { APPOINTMENT_ROUTES, NOTIFICATION_ROUTES } from "../config/api";
 const COMMON_SYMPTOMS = [
   "Headache",
@@ -96,6 +97,30 @@ const DOCTOR_DIRECTORY = {
 
 const toTitleCase = (value = "") =>
   value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+
+const getPaymentStatusColorClass = (status = "") => {
+  const normalizedStatus = String(status).toLowerCase();
+
+  if (normalizedStatus === "completed" || normalizedStatus === "paid") {
+    return "bg-[#30D158]/10 text-[#30D158]";
+  }
+
+  if (normalizedStatus === "pending") {
+    return "bg-[#FF9F0A]/10 text-[#FF9F0A]";
+  }
+
+  if (normalizedStatus === "unpaid") {
+    return "bg-[#FF3B30]/10 text-[#FF3B30]";
+  }
+
+  return "bg-[#86868B]/10 text-[#86868B]";
+};
+
+const getPaymentStatusLabel = (status = "") => {
+  const normalizedStatus = String(status || "unpaid").toLowerCase();
+  if (normalizedStatus === "paid") return "Completed";
+  return toTitleCase(normalizedStatus || "unpaid");
+};
 
 const formatAppointmentDateTime = (date, timeSlot) => {
   if (!date) return timeSlot || "TBD";
@@ -516,13 +541,12 @@ export function PatientDashboard() {
       ? apt.doctorId.slice(0, 2).toUpperCase()
       : "DR";
     const normalizedStatus = toTitleCase(apt.status || "pending").toLowerCase();
-    const normalizedPaymentStatus = toTitleCase(
+    const rawPaymentStatus = String(
       apt.paymentStatus || "unpaid",
     ).toLowerCase();
-    const displayStatus =
-      normalizedPaymentStatus === "pending"
-        ? "payment-pending"
-        : normalizedStatus;
+    const normalizedPaymentStatus =
+      rawPaymentStatus === "paid" ? "completed" : rawPaymentStatus;
+    const displayStatus = normalizedStatus;
 
     return {
       id: apt._id,
@@ -542,14 +566,22 @@ export function PatientDashboard() {
   const filteredAppointments = normalizedAppointments.filter((apt) => {
     if (aptFilter === "All") return true;
     if (aptFilter === "Upcoming")
-      return apt.status === "confirmed" || apt.status === "pending";
-    if (aptFilter === "Completed") return apt.status === "completed";
+      return (
+        (apt.status === "confirmed" || apt.status === "pending") &&
+        apt.paymentStatus !== "completed" &&
+        apt.paymentStatus !== "rejected"
+      );
+    if (aptFilter === "Completed")
+      return apt.status === "completed" || apt.paymentStatus === "completed";
     if (aptFilter === "Cancelled") return apt.status === "cancelled";
     return true;
   });
 
   const upcomingAppointments = normalizedAppointments.filter(
-    (apt) => apt.status === "confirmed" || apt.status === "pending",
+    (apt) =>
+      (apt.status === "confirmed" || apt.status === "pending") &&
+      apt.paymentStatus !== "completed" &&
+      apt.paymentStatus !== "rejected",
   );
 
   const handleCancelAppointment = async (appointmentId) => {
@@ -761,31 +793,37 @@ export function PatientDashboard() {
                 View All
               </button>
             </div>
-            <div className="space-y-4">
-              {upcomingAppointments.slice(0, 2).map((apt, idx) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {upcomingAppointments.slice(0, 4).map((apt, idx) => (
                 <GlassCard
                   key={idx}
-                  className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  className="p-4 flex flex-col justify-between gap-3"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-start gap-3">
                     <div
-                      className={`w-12 h-12 rounded-full ${apt.color} flex items-center justify-center font-bold text-lg shrink-0`}
+                      className={`w-11 h-11 rounded-full ${apt.color} flex items-center justify-center font-bold text-base shrink-0`}
                     >
                       {apt.initials}
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-[#1D1D1F]">
+                    <div className="min-w-0">
+                      <h4 className="font-semibold text-[#1D1D1F] truncate">
                         {apt.doc}
                       </h4>
-                      <p className="text-sm text-[#86868B]">
+                      <p className="text-sm text-[#86868B] truncate">
                         {apt.spec} • {apt.type}
                       </p>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
                         <span className="text-sm font-medium">{apt.date}</span>
                         <StatusBadge status={apt.displayStatus} />
                       </div>
-                      <p className="text-xs text-[#86868B] mt-1">
-                        Payment: {toTitleCase(apt.paymentStatus || "unpaid")}
+                      <p className="mt-1">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${getPaymentStatusColorClass(
+                            apt.paymentStatus,
+                          )}`}
+                        >
+                          Payment: {getPaymentStatusLabel(apt.paymentStatus)}
+                        </span>
                       </p>
                     </div>
                   </div>
@@ -793,7 +831,7 @@ export function PatientDashboard() {
                     apt.type === "Video Consult" && (
                       <AppleButton
                         size="sm"
-                        className="w-full sm:w-auto"
+                        className="w-full"
                         onClick={() => navigate("/consultation")}
                       >
                         Join Call
@@ -968,13 +1006,19 @@ export function PatientDashboard() {
                       {apt.type}
                     </span>
                   </div>
+                  <p className="mt-1">
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${getPaymentStatusColorClass(
+                        apt.paymentStatus,
+                      )}`}
+                    >
+                      Payment: {getPaymentStatusLabel(apt.paymentStatus)}
+                    </span>
+                  </p>
                 </div>
               </div>
               <div className="flex flex-col sm:items-end gap-3">
                 <StatusBadge status={apt.displayStatus} />
-                <p className="text-xs text-[#86868B]">
-                  Payment: {toTitleCase(apt.paymentStatus || "unpaid")}
-                </p>
                 {apt.status === "confirmed" && (
                   <div className="flex flex-col gap-2 sm:items-end">
                     {apt.type === "Video Consult" && (
@@ -1617,68 +1661,10 @@ export function PatientDashboard() {
           </div>
         </div>
       ) : (
-        <div className="space-y-6">
-          <div className="border-2 border-dashed border-[#D2D2D7] rounded-2xl p-10 text-center bg-white hover:bg-[#F5F5F7]/50 transition-colors cursor-pointer">
-            <div className="w-16 h-16 bg-[#0071E3]/10 text-[#0071E3] rounded-full flex items-center justify-center mx-auto mb-4">
-              <Upload className="w-8 h-8" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">
-              Drag and drop or click to upload
-            </h3>
-            <p className="text-[#86868B] text-sm">
-              Supported formats: PDF, JPG, PNG (Max 10MB)
-            </p>
-          </div>
-          <h3 className="text-lg font-semibold mt-8 mb-4">Uploaded Reports</h3>
-          <div className="bg-white rounded-2xl border border-[#D2D2D7]/50 overflow-hidden">
-            {[
-              {
-                name: "Blood Test Results.pdf",
-                date: "Mar 4, 2026",
-                size: "1.2 MB",
-              },
-              {
-                name: "ECG Report.pdf",
-                date: "Mar 4, 2026",
-                size: "2.4 MB",
-              },
-              {
-                name: "X-Ray Chest.pdf",
-                date: "Dec 1, 2025",
-                size: "5.1 MB",
-              },
-            ].map((file, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between p-4 border-b border-[#D2D2D7]/50 last:border-0 hover:bg-[#F5F5F7] transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-[#1D1D1F]">{file.name}</p>
-                    <p className="text-sm text-[#86868B]">
-                      {file.date} • {file.size}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <AppleButton variant="ghost" size="sm">
-                    View
-                  </AppleButton>
-                  <AppleButton
-                    variant="secondary"
-                    size="sm"
-                    icon={<Download className="w-4 h-4" />}
-                  >
-                    Download
-                  </AppleButton>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <MedicalReportsPanel
+          patientId={user.id}
+          title="Upload and Manage Reports"
+        />
       )}
     </motion.div>
   );

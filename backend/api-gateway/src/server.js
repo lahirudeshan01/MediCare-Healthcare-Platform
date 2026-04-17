@@ -30,6 +30,8 @@ const services = {
   "/payments": process.env.PAYMENT_SERVICE_URL || "http://localhost:3004",
   "/notifications":
     process.env.NOTIFICATION_SERVICE_URL || "http://localhost:3005",
+  "/patients": process.env.PATIENT_SERVICE_URL || "http://localhost:3006",
+  "/uploads": process.env.PATIENT_SERVICE_URL || "http://localhost:3006",
 
   // ── Future services (uncomment when ready) ────────────
   // '/doctors':      process.env.DOCTOR_SERVICE_URL      || 'http://localhost:3004',

@@ -230,7 +230,7 @@ export function AdminDashboard() {
       }
 
       setPaymentActionMessage(
-        "Payment approved. Appointment payment verified.",
+        "Payment approved. Status changed from Pending to Completed.",
       );
       await fetchPendingPayments();
     } catch (error) {
@@ -260,7 +260,7 @@ export function AdminDashboard() {
       }
 
       setPaymentActionMessage(
-        "Payment rejected. Booking cancelled automatically.",
+        "Payment rejected. Appointment has been cancelled.",
       );
       await fetchPendingPayments();
     } catch (error) {
@@ -396,13 +396,22 @@ export function AdminDashboard() {
                     <span className="text-[#86868B]">
                       Amount: Rs. {payment.amount || 0}
                     </span>
+                    <span className="text-[#86868B]">
+                      Uploaded: {new Date(payment.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="mb-4 text-sm text-[#4C4C50]">
+                    <p>
+                      Slip file: {payment?.slip?.originalName || "Unknown file"}
+                    </p>
                     <a
                       href={buildSlipUrl(payment?.slip?.publicUrl)}
                       target="_blank"
                       rel="noreferrer"
                       className="text-[#0071E3] font-medium hover:underline"
                     >
-                      View Payment Slip
+                      Open Bank Slip
                     </a>
                   </div>
 

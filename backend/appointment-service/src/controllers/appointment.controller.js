@@ -344,9 +344,17 @@ exports.markPaymentApproved = async (req, res) => {
       });
     }
 
-    appointment.paymentStatus = "PAID";
+    appointment.paymentStatus = "COMPLETED";
     appointment.status = "CONFIRMED";
     await appointment.save();
+
+    await sendAppointmentNotification({
+      userId: appointment.patientId,
+      appointmentId: appointment._id,
+      type: "payment-approved",
+      title: "Payment approved",
+      message: `Your payment for the appointment on ${appointment.date} at ${appointment.timeSlot} has been approved.`,
+    });
 
     return res.status(200).json({
       message: "Appointment payment verified",

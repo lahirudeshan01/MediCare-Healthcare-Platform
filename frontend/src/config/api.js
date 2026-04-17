@@ -37,6 +37,19 @@ export const PAYMENT_ROUTES = {
     `${PAYMENT_SERVICE}/payments/${encodeURIComponent(paymentId)}/reject`,
 };
 
+export const PATIENT_SERVICE = API_GATEWAY;
+export const PATIENT_ROUTES = {
+  base: `${PATIENT_SERVICE}/patients`,
+  byId: (patientId) =>
+    `${PATIENT_SERVICE}/patients/${encodeURIComponent(patientId)}`,
+  reports: (patientId) =>
+    `${PATIENT_SERVICE}/patients/${encodeURIComponent(patientId)}/reports`,
+  uploadReport: (patientId) =>
+    `${PATIENT_SERVICE}/patients/${encodeURIComponent(patientId)}/upload-report`,
+  deleteReport: (patientId, reportId) =>
+    `${PATIENT_SERVICE}/patients/${encodeURIComponent(patientId)}/reports/${encodeURIComponent(reportId)}`,
+};
+
 // Future services (same gateway, different route prefixes)
 // export const DOCTOR_SERVICE = API_GATEWAY;
 // export const NOTIFICATION_SERVICE = API_GATEWAY;
