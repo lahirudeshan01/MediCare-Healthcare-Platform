@@ -15,8 +15,8 @@ router.patch("/doctors/admin/:id/verify", requireAdmin, controller.verifyDoctor)
 // Public: browse approved doctors (no auth required)
 router.get("/doctors", controller.getVerifiedDoctors);
 
-// Creating a doctor profile is called internally after registration
-router.post("/doctors", verifyToken, controller.createDoctor);
+// Creating a doctor profile — also called by auth-service during verification (no token)
+router.post("/doctors", controller.createDoctor);
 router.get("/doctors/:id/availability", controller.getAvailability);        // public — patients browse
 router.put("/doctors/:id/availability", verifyToken, controller.setAvailability);
 

@@ -24,7 +24,6 @@ app.use("/uploads/reports", express.static(reportsDirectory));
 
 // Routes
 app.use("/", patientRoutes);
-app.use("/api", patientRoutes);
 
 // Database Connection
 if (!mongoUri) {

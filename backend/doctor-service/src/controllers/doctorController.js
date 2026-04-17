@@ -4,6 +4,20 @@ const Prescription = require("../models/Prescription");
 const Appointment = require("../models/Appointment");
 const { publishAppointmentApproved } = require("../rabbitmq");
 
+const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL || "http://localhost:3005";
+
+async function sendNotification({ userId, type, title, message, source }) {
+  try {
+    await fetch(`${NOTIFICATION_SERVICE_URL}/notifications`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, type, title, message, source: source || "doctor-service" }),
+    });
+  } catch (err) {
+    console.error("Failed to send notification:", err.message);
+  }
+}
+
 const DEFAULT_AVAILABILITY_SLOTS = [
   { day: "Mon", block: "9:00 AM - 12:00 PM", isAvailable: true },
   { day: "Mon", block: "12:00 PM - 2:00 PM", isAvailable: false },
@@ -202,7 +216,7 @@ exports.acceptAppointment = async (req, res) => {
 // Issue Prescription
 exports.createPrescription = async (req, res) => {
   try {
-    const { doctorId, patientName, diagnosis } = req.body;
+    const { doctorId, patientId, patientName, diagnosis } = req.body;
 
     if (!doctorId || !patientName || !diagnosis) {
       return res.status(400).json({
@@ -212,6 +226,17 @@ exports.createPrescription = async (req, res) => {
 
     const prescription = new Prescription(req.body);
     await prescription.save();
+
+    // Notify the patient about the new prescription
+    if (patientId) {
+      sendNotification({
+        userId: patientId,
+        type: "prescription-ready",
+        title: "Your prescription is ready",
+        message: `A new prescription for "${diagnosis}" has been issued by your doctor. Check My Prescriptions for details.`,
+      });
+    }
+
     return res.status(201).json(prescription);
   } catch (error) {
     return res.status(500).json({ message: "Failed to create prescription" });
@@ -225,6 +250,10 @@ exports.listPrescriptions = async (req, res) => {
 
     if (req.query.doctorId) {
       filter.doctorId = String(req.query.doctorId);
+    }
+
+    if (req.query.patientId) {
+      filter.patientId = String(req.query.patientId);
     }
 
     const prescriptions = await Prescription.find(filter).sort({ date: -1 });

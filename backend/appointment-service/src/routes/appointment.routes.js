@@ -12,6 +12,9 @@ router.get("/", appointmentController.getAllAppointments);
 // Book appointment -> POST /appointments
 router.post("/", appointmentController.bookAppointment);
 
+// Doctor accept/reject -> POST /appointments/{id}/accept
+router.post("/:id/accept", appointmentController.acceptOrRejectAppointment);
+
 // Cancel appointment -> PUT /appointments/{id}/cancel
 router.put("/:id/cancel", appointmentController.cancelAppointment);
 

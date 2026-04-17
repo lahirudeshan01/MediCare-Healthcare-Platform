@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require("multer");
 const path = require("path");
 const patientController = require("../controllers/patientController");
+const verifyToken = require("../middleware/verifyToken");
 
 // Set up Multer for file upload
 const storage = multer.diskStorage({
@@ -18,21 +19,23 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // API Routes
-router.get("/patients", patientController.getAllPatients);
-router.post("/patients", patientController.createPatient);
-router.get("/patients/:id", patientController.getPatientProfile);
-router.put("/patients/:id", patientController.updatePatientProfile);
-router.delete("/patients/:id", patientController.deletePatient);
+router.get("/patients", verifyToken, patientController.getAllPatients);
+router.post("/patients", verifyToken, patientController.createPatient);
+router.get("/patients/:id", verifyToken, patientController.getPatientProfile);
+router.put("/patients/:id", verifyToken, patientController.updatePatientProfile);
+router.delete("/patients/:id", verifyToken, patientController.deletePatient);
 router.post(
   "/patients/:id/upload-report",
+  verifyToken,
   upload.single("reportFile"),
   patientController.uploadMedicalReport,
 );
-router.get("/patients/:id/reports", patientController.getPatientReports);
+router.get("/patients/:id/reports", verifyToken, patientController.getPatientReports);
 router.delete(
   "/patients/:id/reports/:reportId",
+  verifyToken,
   patientController.deleteMedicalReport,
 );
-router.get("/patients/:id/history", patientController.getPatientHistory);
+router.get("/patients/:id/history", verifyToken, patientController.getPatientHistory);
 
 module.exports = router;

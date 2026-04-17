@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
@@ -58,7 +58,26 @@ export function DoctorProfile() {
   const [isBooking, setIsBooking] = useState(false);
   const [bookingMessage, setBookingMessage] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [bookedSlots, setBookedSlots] = useState([]);
   const selectedDateDetails = days.find((d) => d.isoDate === selectedDate) || days[0];
+
+  // Fetch booked slots for the selected date
+  useEffect(() => {
+    if (!doctorId || !selectedDate) return;
+    const fetchBooked = async () => {
+      try {
+        const res = await fetch(`${API_GATEWAY}/appointments?doctorId=${doctorId}&date=${selectedDate}`, { headers: authHeader });
+        if (res.ok) {
+          const data = await res.json();
+          const slots = (Array.isArray(data) ? data : [])
+            .filter((a) => a.status !== 'CANCELLED' && a.status !== 'cancelled')
+            .map((a) => a.timeSlot);
+          setBookedSlots(slots);
+        }
+      } catch (_e) { /* ignore */ }
+    };
+    fetchBooked();
+  }, [doctorId, selectedDate]);
 
   const doctorName = doctor.name || 'Doctor';
   const doctorSpecialty = doctor.specialization || '';
@@ -79,6 +98,7 @@ export function DoctorProfile() {
         body: JSON.stringify({
           doctorId,
           patientId,
+          patientName: currentUser.name || 'Patient',
           specialty: doctorSpecialty,
           date: selectedDate,
           timeSlot: selectedTime,
@@ -202,8 +222,8 @@ export function DoctorProfile() {
 
             {/* Time Slots */}
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mb-8">
-              {TIME_SLOTS.map((time, i) => {
-                const isUnavailable = i === 2 || i === 5; // Mock unavailable slots
+              {TIME_SLOTS.map((time) => {
+                const isUnavailable = bookedSlots.includes(time);
                 return (
                   <button
                     key={time}
@@ -385,10 +405,10 @@ export function DoctorProfile() {
               </motion.div>
 
               <h2 className="text-2xl font-bold mb-2">
-                Appointment Confirmed!
+                Appointment Requested!
               </h2>
               <p className="text-[#86868B] mb-8">
-                You'll receive a confirmation via SMS and email shortly.
+                Your appointment request has been sent. The doctor will review and confirm shortly.
               </p>
 
               <div className="bg-[#F5F5F7] rounded-2xl p-4 mb-8 text-left space-y-3">

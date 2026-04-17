@@ -31,6 +31,14 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true, // false for new doctor registrations until admin approves
   },
+  specialization: {
+    type: String,
+    default: '',
+  },
+  consultationFee: {
+    type: Number,
+    default: 2000,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

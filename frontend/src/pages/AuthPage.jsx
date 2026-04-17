@@ -19,6 +19,7 @@ export function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [pendingApproval, setPendingApproval] = useState(false);
   const [pendingEmail, setPendingEmail] = useState('');
+  const [specialization, setSpecialization] = useState('');
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -52,6 +53,7 @@ export function AuthPage() {
         email: regEmail,
         password: regPassword,
         role,
+        ...(role === 'doctor' && specialization ? { specialization } : {}),
       });
       // Doctor accounts need admin approval before login
       if (res.data.pendingVerification) {
@@ -393,12 +395,19 @@ export function AuthPage() {
                       <label className="block text-sm font-medium text-[#1D1D1F] mb-1.5">
                         Specialty
                       </label>
-                      <select className="w-full px-4 py-3 bg-[#F5F5F7] border-transparent rounded-xl text-[#1D1D1F] focus:bg-white focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all outline-none appearance-none">
+                      <select
+                        value={specialization}
+                        onChange={(e) => setSpecialization(e.target.value)}
+                        className="w-full px-4 py-3 bg-[#F5F5F7] border-transparent rounded-xl text-[#1D1D1F] focus:bg-white focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/20 transition-all outline-none appearance-none">
                         <option value="">Select Specialty</option>
                         <option value="Cardiologist">Cardiologist</option>
                         <option value="Dermatologist">Dermatologist</option>
                         <option value="Neurologist">Neurologist</option>
                         <option value="Pediatrician">Pediatrician</option>
+                        <option value="General Practitioner">General Practitioner</option>
+                        <option value="Orthopedic">Orthopedic</option>
+                        <option value="Psychiatrist">Psychiatrist</option>
+                        <option value="ENT Specialist">ENT Specialist</option>
                       </select>
                     </div>
                     <div>

@@ -14,7 +14,7 @@ RUN npm install
 COPY . .
 
 # Expose the API port
-EXPOSE 5000
+EXPOSE 3006
 
 # Start command
 CMD ["node", "server.js"]

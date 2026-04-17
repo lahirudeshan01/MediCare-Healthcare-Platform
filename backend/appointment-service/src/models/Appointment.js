@@ -10,6 +10,14 @@ const appointmentSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    patientName: {
+      type: String,
+      default: "",
+    },
+    reason: {
+      type: String,
+      default: "",
+    },
     specialty: {
       type: String,
       required: true,

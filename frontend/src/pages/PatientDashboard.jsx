@@ -196,6 +196,9 @@ export function PatientDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
+  // Prescriptions State
+  const [prescriptions, setPrescriptions] = useState([]);
+  const [prescriptionsLoading, setPrescriptionsLoading] = useState(false);
   // AI Assistant State
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -285,6 +288,23 @@ export function PatientDashboard() {
     };
 
     loadAppointments();
+  }, [user.id]);
+
+  // Load prescriptions
+  useEffect(() => {
+    if (!user.id) return;
+    const loadPrescriptions = async () => {
+      setPrescriptionsLoading(true);
+      try {
+        const res = await fetch(`${APPOINTMENT_ROUTES.base.replace('/appointments', '')}/prescriptions?patientId=${user.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setPrescriptions(Array.isArray(data) ? data : []);
+        }
+      } catch (_e) { /* ignore */ }
+      finally { setPrescriptionsLoading(false); }
+    };
+    loadPrescriptions();
   }, [user.id]);
 
   const loadNotifications = async () => {
@@ -519,9 +539,8 @@ export function PatientDashboard() {
   };
   const normalizedAppointments = appointments.map((apt) => {
     const doctor = DOCTOR_DIRECTORY[apt.doctorId] || {};
-    const fallbackInitials = apt.doctorId
-      ? apt.doctorId.slice(0, 2).toUpperCase()
-      : "DR";
+    const fallbackInitials = (apt.doctorName || apt.doctorId || 'DR')
+      .split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
     const normalizedStatus = toTitleCase(apt.status || "pending").toLowerCase();
     const rawPaymentStatus = String(
       apt.paymentStatus || "unpaid",
@@ -532,7 +551,7 @@ export function PatientDashboard() {
 
     return {
       id: apt._id,
-      doc: doctor.name || `Doctor #${apt.doctorId}`,
+      doc: doctor.name || apt.doctorName || `Doctor`,
       spec: apt.specialty || doctor.specialty || "General Consultation",
       date: formatAppointmentDateTime(apt.date, apt.timeSlot),
       type:
@@ -585,7 +604,7 @@ export function PatientDashboard() {
     >
       <header className="flex justify-between items-end mb-8">
         <div>
-          <p className="text-[#86868B] font-medium mb-1">Thursday, Oct 24</p>
+          <p className="text-[#86868B] font-medium mb-1">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</p>
           <h1 className="text-3xl font-semibold tracking-tight">
             Good morning, {userFirstName}
           </h1>
@@ -1354,69 +1373,65 @@ export function PatientDashboard() {
       className="max-w-4xl mx-auto"
     >
       <h2 className="text-2xl font-semibold mb-6">My Prescriptions</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {[
-          {
-            name: "Amoxicillin 500mg",
-            dosage: "1 capsule, 3 times a day",
-            doc: "Dr. Tharuka Bandara",
-            date: "Jan 10, 2026",
-            valid: "Jan 17, 2026",
-            status: "expired",
-          },
-          {
-            name: "Hydrocortisone Cream 1%",
-            dosage: "Apply twice daily",
-            doc: "Dr. Nishani Fernando",
-            date: "Feb 18, 2026",
-            valid: "Mar 18, 2026",
-            status: "active",
-          },
-          {
-            name: "Atorvastatin 20mg",
-            dosage: "1 tablet daily at night",
-            doc: "Dr. Kumara Perera",
-            date: "Mar 5, 2026",
-            valid: "Sep 5, 2026",
-            status: "active",
-          },
-        ].map((rx, idx) => (
-          <GlassCard key={idx} className="p-6 flex flex-col">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-[#1D1D1F]">
-                  {rx.name}
-                </h3>
-                <p className="text-[#86868B] text-sm mt-1">{rx.dosage}</p>
-              </div>
-              <StatusBadge
-                status={rx.status === "active" ? "confirmed" : "offline"}
-              />
-            </div>
-            <div className="bg-[#F5F5F7] rounded-xl p-4 mb-6 flex-1">
-              <p className="text-sm text-[#86868B] mb-1">Prescribed by</p>
-              <p className="font-medium text-sm mb-3">{rx.doc}</p>
-              <div className="flex justify-between text-sm">
+      {prescriptionsLoading && (
+        <p className="text-sm text-[#86868B]">Loading prescriptions...</p>
+      )}
+      {!prescriptionsLoading && prescriptions.length === 0 && (
+        <GlassCard className="p-8 text-center">
+          <Pill className="w-10 h-10 text-[#86868B] mx-auto mb-3" />
+          <p className="text-[#86868B]">No prescriptions yet.</p>
+        </GlassCard>
+      )}
+      {!prescriptionsLoading && prescriptions.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {prescriptions.map((rx) => (
+            <GlassCard key={rx._id} className="p-6 flex flex-col">
+              <div className="flex justify-between items-start mb-4">
                 <div>
-                  <p className="text-[#86868B]">Issued</p>
-                  <p className="font-medium">{rx.date}</p>
+                  <h3 className="text-lg font-semibold text-[#1D1D1F]">
+                    {rx.diagnosis || 'Prescription'}
+                  </h3>
+                  {Array.isArray(rx.medications) && rx.medications.length > 0 && (
+                    <p className="text-[#86868B] text-sm mt-1">
+                      {rx.medications.map((m) => m.name).filter(Boolean).join(', ')}
+                    </p>
+                  )}
                 </div>
-                <div>
-                  <p className="text-[#86868B]">Valid until</p>
-                  <p className="font-medium">{rx.valid}</p>
-                </div>
+                <StatusBadge status="confirmed" />
               </div>
-            </div>
-            <AppleButton
-              variant="secondary"
-              className="w-full"
-              icon={<Download className="w-4 h-4" />}
-            >
-              Download PDF
-            </AppleButton>
-          </GlassCard>
-        ))}
-      </div>
+              <div className="bg-[#F5F5F7] rounded-xl p-4 mb-6 flex-1">
+                <p className="text-sm text-[#86868B] mb-1">Prescribed by</p>
+                <p className="font-medium text-sm mb-3">Doctor</p>
+                <div className="flex justify-between text-sm">
+                  <div>
+                    <p className="text-[#86868B]">Date</p>
+                    <p className="font-medium">
+                      {rx.date ? new Date(rx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+                {rx.notes && (
+                  <p className="text-sm text-[#86868B] mt-3">Notes: {rx.notes}</p>
+                )}
+              </div>
+              {Array.isArray(rx.medications) && rx.medications.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-[#1D1D1F] mb-2">Medications</p>
+                  <ul className="text-sm text-[#86868B] space-y-1">
+                    {rx.medications.map((med, idx) => (
+                      <li key={idx}>
+                        {med.name}{(med.dosage || med.frequency || med.duration) && (
+                          <span> ({[med.dosage, med.frequency, med.duration].filter(Boolean).join(', ')})</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </GlassCard>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 

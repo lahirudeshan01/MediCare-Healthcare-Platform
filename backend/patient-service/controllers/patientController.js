@@ -1,6 +1,7 @@
 const Patient = require("../models/Patient");
 const MedicalReport = require("../models/MedicalReport");
 const PrescriptionReference = require("../models/PrescriptionReference");
+const { sendNotification } = require("../services/notification.service");
 const fs = require("fs/promises");
 const path = require("path");
 
@@ -123,6 +124,15 @@ exports.uploadMedicalReport = async (req, res) => {
     });
 
     await newReport.save();
+
+    // Notify the patient that their report was uploaded successfully
+    sendNotification({
+      userId: String(patientId),
+      type: 'report_uploaded',
+      title: 'Medical Report Uploaded',
+      message: `Your medical report "${newReport.reportTitle}" has been uploaded successfully.`,
+      metadata: { reportId: newReport._id, reportTitle: newReport.reportTitle },
+    });
 
     res.status(201).json({
       message: "Medical report uploaded successfully",

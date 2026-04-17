@@ -147,7 +147,7 @@ const {
 // GET /appointments
 exports.getAllAppointments = async (req, res) => {
   try {
-    const { patientId, doctorId } = req.query;
+    const { patientId, doctorId, status } = req.query;
     const filter = {};
 
     if (patientId) {
@@ -156,6 +156,20 @@ exports.getAllAppointments = async (req, res) => {
 
     if (doctorId) {
       filter.doctorId = doctorId;
+    }
+
+    if (status) {
+      // Map doctor-dashboard style status names to appointment-service enum values
+      const statusMap = {
+        pending: "PENDING",
+        locked: "LOCKED",
+        confirmed: "CONFIRMED",
+        approved: "CONFIRMED",
+        cancelled: "CANCELLED",
+      };
+      const normalizedStatus =
+        statusMap[status.toLowerCase()] || status.toUpperCase();
+      filter.status = normalizedStatus;
     }
 
     const appointments = await Appointment.find(filter).sort({ createdAt: -1 });
@@ -195,10 +209,12 @@ exports.bookAppointment = async (req, res) => {
     const {
       doctorId,
       patientId,
+      patientName,
       specialty,
       date,
       timeSlot,
       consultType,
+      reason,
       paymentMode,
       paymentReference,
     } = req.body;
@@ -241,17 +257,19 @@ exports.bookAppointment = async (req, res) => {
       });
     }
 
-    // Create appointment (directly CONFIRMED since no async flow)
+    // Create appointment as PENDING — confirmed after payment
     const isBankSlipPayment = normalizedPaymentMode === "bank-slip";
 
     const appointment = new Appointment({
       doctorId,
       patientId,
+      patientName: patientName || "",
+      reason: reason || "",
       specialty,
       date,
       timeSlot,
       consultType: normalizedConsultType,
-      status: "CONFIRMED",
+      status: "PENDING",
       paymentStatus: isBankSlipPayment ? "PENDING" : "UNPAID",
       paymentSlip:
         isBankSlipPayment && paymentReference
@@ -264,12 +282,22 @@ exports.bookAppointment = async (req, res) => {
 
     await appointment.save();
 
+    // Notify the patient
     await sendAppointmentNotification({
       userId: patientId,
       appointmentId: appointment._id,
       type: "appointment-booked",
       title: "Appointment booked",
-      message: `Your ${normalizedConsultType} appointment for ${date} at ${timeSlot} has been confirmed.`,
+      message: `Your ${normalizedConsultType} appointment for ${date} at ${timeSlot} has been booked and is pending payment.`,
+    });
+
+    // Notify the doctor
+    await sendAppointmentNotification({
+      userId: doctorId,
+      appointmentId: appointment._id,
+      type: "new-appointment-request",
+      title: "New appointment request",
+      message: `${patientName || "A patient"} booked a ${normalizedConsultType} appointment for ${date} at ${timeSlot}.`,
     });
 
     res.status(201).json(appointment);
@@ -455,5 +483,58 @@ exports.getAppointment = async (req, res) => {
   } catch (error) {
     console.error("Error getting appointment:", error);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// POST /appointments/:id/accept — doctor accepts or rejects
+exports.acceptOrRejectAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const action = String(req.body.action || "").toLowerCase();
+
+    if (!["accept", "reject"].includes(action)) {
+      return res
+        .status(400)
+        .json({ message: "action must be 'accept' or 'reject'" });
+    }
+
+    const appointment = await Appointment.findById(id);
+
+    if (!appointment) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    if (action === "accept") {
+      appointment.status = "CONFIRMED";
+    } else {
+      appointment.status = "CANCELLED";
+    }
+
+    await appointment.save();
+
+    // Notify the patient about acceptance/rejection
+    const notifTitle =
+      action === "accept" ? "Appointment confirmed" : "Appointment declined";
+    const notifMessage =
+      action === "accept"
+        ? `Your appointment for ${appointment.date} at ${appointment.timeSlot} has been confirmed by the doctor.`
+        : `Your appointment for ${appointment.date} at ${appointment.timeSlot} was declined by the doctor.`;
+
+    await sendAppointmentNotification({
+      userId: appointment.patientId,
+      appointmentId: appointment._id,
+      type: action === "accept" ? "appointment-confirmed" : "appointment-rejected",
+      title: notifTitle,
+      message: notifMessage,
+    });
+
+    return res.status(200).json({
+      message:
+        action === "accept" ? "Appointment approved" : "Appointment rejected",
+      appointment,
+    });
+  } catch (error) {
+    console.error("Error accepting/rejecting appointment:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };

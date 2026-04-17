@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -15,11 +15,13 @@ import {
   Plus,
   Trash2,
   Pencil,
-  Video } from
+  Video,
+  Bell } from
 'lucide-react';
 import { AppleButton } from '../components/ui/AppleButton';
 import { GlassCard } from '../components/ui/GlassCard';
 import { StatusBadge } from '../components/ui/StatusBadge';
+import { NOTIFICATION_ROUTES } from '../config/api';
 
 const AVAILABILITY_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const AVAILABILITY_BLOCKS = ['9:00 AM - 12:00 PM', '12:00 PM - 2:00 PM', '2:00 PM - 5:00 PM'];
@@ -78,6 +80,43 @@ export function DoctorDashboard() {
     medicationsText: ''
   });
 
+  // Notification state
+  const [notifications, setNotifications] = useState([]);
+  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
+
+  const loadNotifications = async () => {
+    if (!doctorId) return;
+    try {
+      const response = await fetch(NOTIFICATION_ROUTES.byUser(doctorId));
+      if (!response.ok) return;
+      const data = await response.json();
+      setNotifications(Array.isArray(data) ? data : []);
+    } catch (_error) {
+      // ignore
+    }
+  };
+
+  const markNotificationRead = async (notificationId) => {
+    try {
+      await fetch(NOTIFICATION_ROUTES.markRead(notificationId), { method: 'PATCH' });
+      setNotifications((prev) => prev.map((n) => n._id === notificationId ? { ...n, isRead: true } : n));
+    } catch (_error) { /* ignore */ }
+  };
+
+  const markAllNotificationsRead = async () => {
+    if (!doctorId) return;
+    try {
+      await fetch(NOTIFICATION_ROUTES.markAllRead, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: doctorId }),
+      });
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    } catch (_error) { /* ignore */ }
+  };
+
+  const unreadNotificationCount = notifications.filter((n) => !n.isRead).length;
+
   const parseAppointmentDate = (dateValue) => {
     if (!dateValue) {
       return null;
@@ -135,7 +174,7 @@ export function DoctorDashboard() {
   const todayDate = new Date();
   const todayOnly = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate());
   const todaysApprovedAppointments = approvedAppointments.filter((apt) => {
-    const parsedDate = parseAppointmentDate(apt.appointmentDate);
+    const parsedDate = parseAppointmentDate(apt.date || apt.appointmentDate);
     return parsedDate ? isSameDay(parsedDate, todayOnly) : false;
   });
   const patientsTodayCount =
@@ -327,7 +366,7 @@ export function DoctorDashboard() {
       map((patient) => ({
         ...patient,
         appointments: patient.appointments.sort(
-          (a, b) => new Date(b.createdAt || b.appointmentDate || 0) - new Date(a.createdAt || a.appointmentDate || 0)
+          (a, b) => new Date(b.createdAt || b.date || b.appointmentDate || 0) - new Date(a.createdAt || a.date || a.appointmentDate || 0)
         ),
         prescriptions: patient.prescriptions.sort(
           (a, b) => new Date(b.date || 0) - new Date(a.date || 0)
@@ -584,6 +623,9 @@ export function DoctorDashboard() {
     loadAppointments();
     loadAvailability();
     loadPatientsData();
+    loadNotifications();
+    const notifInterval = window.setInterval(loadNotifications, 30000);
+    return () => window.clearInterval(notifInterval);
   }, []);
 
   const handlePrescriptionSubmit = async () => {
@@ -723,7 +765,57 @@ export function DoctorDashboard() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-64 p-4 md:p-8">
+      <main className="flex-1 md:ml-64 p-4 md:p-8 relative">
+        {/* Notification Bell */}
+        <div className="absolute top-4 right-4 md:top-8 md:right-8 z-30">
+          <button
+            onClick={() => setIsNotificationPanelOpen(!isNotificationPanelOpen)}
+            className="relative p-2 rounded-full bg-white shadow-md hover:bg-[#F5F5F7] transition-colors">
+            <Bell className="w-5 h-5 text-[#1D1D1F]" />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#FF3B30] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+              </span>
+            )}
+          </button>
+          <AnimatePresence>
+            {isNotificationPanelOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-[#D2D2D7]/50 overflow-hidden z-40">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-[#D2D2D7]/50">
+                  <h3 className="font-semibold text-[#1D1D1F]">Notifications</h3>
+                  {unreadNotificationCount > 0 && (
+                    <button onClick={markAllNotificationsRead} className="text-xs text-[#0071E3] hover:underline">
+                      Mark all read
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {notifications.length === 0 && (
+                    <p className="text-sm text-[#86868B] p-4 text-center">No notifications</p>
+                  )}
+                  {notifications.slice(0, 20).map((n) => (
+                    <div
+                      key={n._id}
+                      onClick={() => !n.isRead && markNotificationRead(n._id)}
+                      className={`px-4 py-3 border-b border-[#D2D2D7]/30 cursor-pointer hover:bg-[#F5F5F7] transition-colors ${!n.isRead ? 'bg-[#0071E3]/5' : ''}`}>
+                      <p className={`text-sm ${!n.isRead ? 'font-medium text-[#1D1D1F]' : 'text-[#86868B]'}`}>
+                        {n.message}
+                      </p>
+                      <p className="text-[10px] text-[#86868B] mt-1">
+                        {n.createdAt ? new Date(n.createdAt).toLocaleString() : ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         {activeSection === 'dashboard' &&
         <>
         <header className="flex justify-between items-center mb-8">
@@ -814,7 +906,7 @@ export function DoctorDashboard() {
                   todaysApprovedAppointments.slice(0, 5).map((apt) =>
                   <div key={apt._id} className="flex items-center gap-4 group">
                       <div className="w-20 text-sm font-medium text-[#86868B] text-right shrink-0">
-                        {apt.appointmentTime}
+                        {apt.timeSlot || apt.appointmentTime}
                       </div>
                       <div className="w-3 h-3 rounded-full bg-[#D2D2D7] group-hover:bg-[#0071E3] transition-colors relative z-10"></div>
                       <div className="flex-1 bg-[#F5F5F7] rounded-xl p-4 flex items-center justify-between">
@@ -823,7 +915,7 @@ export function DoctorDashboard() {
                             {apt.patientName}
                           </p>
                           <p className="text-sm text-[#86868B]">
-                            {formatAppointmentDateLabel(apt.appointmentDate)} • {apt.consultType === 'video' ? 'Video Consultation' : 'In-Person Visit'}
+                            {formatAppointmentDateLabel(apt.date || apt.appointmentDate)} • {apt.consultType === 'video' ? 'Video Consultation' : 'In-Person Visit'}
                           </p>
                           <p className="text-xs text-[#86868B] mt-1">Patient ID: {apt.patientId || 'N/A'}</p>
                         </div>
@@ -878,13 +970,11 @@ export function DoctorDashboard() {
                       <div>
                         <p className="font-semibold">{req.patientName}</p>
                         <p className="text-sm text-[#86868B]">
-                          {formatAppointmentDateLabel(req.appointmentDate)}, {req.appointmentTime}
+                          {formatAppointmentDateLabel(req.date || req.appointmentDate)}, {req.timeSlot || req.appointmentTime}
                         </p>
                       </div>
                     </div>
-                    <p className="text-sm text-[#1D1D1F] mb-4">
-                      Reason: {req.reason}
-                    </p>
+                      <p className="text-sm text-[#86868B] mt-1">Reason: {req.reason}</p>
                     <div className="flex gap-2">
                       <AppleButton
                       className="flex-1 bg-[#30D158] hover:bg-[#28B44C] focus:ring-[#30D158]"
@@ -1218,7 +1308,7 @@ export function DoctorDashboard() {
                 {!isLoadingPatients && patientDirectory.length > 0 &&
                 <div className="space-y-2 max-h-[60vh] overflow-auto pr-1">
                     {patientDirectory.map((patient) => {
-                    const pendingCount = patient.appointments.filter((apt) => apt.status === 'pending').length;
+                    const pendingCount = patient.appointments.filter((apt) => apt.status === 'pending' || apt.status === 'PENDING').length;
                     return (
                       <button
                         type="button"
@@ -1273,9 +1363,9 @@ export function DoctorDashboard() {
                         <div key={apt._id} className="rounded-lg border border-[#D2D2D7]/50 p-3 bg-white">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <p className="text-sm font-medium text-[#1D1D1F]">
-                                {formatAppointmentDateLabel(apt.appointmentDate)}, {apt.appointmentTime}
+                                {formatAppointmentDateLabel(apt.date || apt.appointmentDate)}, {apt.timeSlot || apt.appointmentTime}
                               </p>
-                              <StatusBadge status={apt.status === 'approved' ? 'confirmed' : apt.status} />
+                              <StatusBadge status={apt.status === 'approved' || apt.status === 'CONFIRMED' ? 'confirmed' : apt.status?.toLowerCase() || apt.status} />
                             </div>
                             <p className="text-sm text-[#86868B] mt-1">Reason: {apt.reason}</p>
                           </div>
@@ -1286,16 +1376,16 @@ export function DoctorDashboard() {
 
                     <section>
                       <h3 className="text-lg font-semibold mb-3">Past Medical Reports</h3>
-                      {selectedPatient.appointments.filter((apt) => apt.status !== 'pending').length === 0 &&
+                      {selectedPatient.appointments.filter((apt) => apt.status !== 'pending' && apt.status !== 'PENDING').length === 0 &&
                       <p className="text-sm text-[#86868B]">No past medical records yet.</p>
                       }
 
-                      {selectedPatient.appointments.filter((apt) => apt.status !== 'pending').length > 0 &&
+                      {selectedPatient.appointments.filter((apt) => apt.status !== 'pending' && apt.status !== 'PENDING').length > 0 &&
                       <div className="space-y-2">
-                          {selectedPatient.appointments.filter((apt) => apt.status !== 'pending').slice(0, 8).map((apt) =>
+                          {selectedPatient.appointments.filter((apt) => apt.status !== 'pending' && apt.status !== 'PENDING').slice(0, 8).map((apt) =>
                         <div key={`record-${apt._id}`} className="rounded-lg border border-[#D2D2D7]/50 p-3 bg-[#F9FAFB]">
                             <p className="text-sm font-medium text-[#1D1D1F]">
-                              {formatAppointmentDateLabel(apt.appointmentDate)} • {apt.consultType === 'video' ? 'Video Consultation' : 'In-Person Visit'}
+                              {formatAppointmentDateLabel(apt.date || apt.appointmentDate)} • {apt.consultType === 'video' ? 'Video Consultation' : 'In-Person Visit'}
                             </p>
                             <p className="text-sm text-[#86868B] mt-1">Clinical note: {apt.reason}</p>
                           </div>
@@ -1365,7 +1455,7 @@ export function DoctorDashboard() {
                     <div>
                       <p className="font-semibold text-[#1D1D1F]">{apt.patientName}</p>
                       <p className="text-sm text-[#86868B]">
-                        {formatAppointmentDateLabel(apt.appointmentDate)}, {apt.appointmentTime}
+                        {formatAppointmentDateLabel(apt.date || apt.appointmentDate)}, {apt.timeSlot || apt.appointmentTime}
                       </p>
                       <p className="text-xs text-[#86868B] mt-1">Patient ID: {apt.patientId || 'N/A'}</p>
                       <p className="text-sm text-[#1D1D1F] mt-1">Reason: {apt.reason}</p>

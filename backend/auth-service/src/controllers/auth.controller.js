@@ -2,9 +2,43 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3005';
+const DOCTOR_SERVICE_URL = process.env.DOCTOR_SERVICE_URL || 'http://localhost:8082';
+
+async function sendNotification({ userId, type, title, message, source }) {
+  try {
+    await fetch(`${NOTIFICATION_SERVICE_URL}/notifications`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, type, title, message, source: source || 'auth-service' }),
+    });
+  } catch (err) {
+    console.error('Failed to send notification:', err.message);
+  }
+}
+
+async function syncDoctorProfile({ name, email, specialization, consultationFee }) {
+  try {
+    await fetch(`${DOCTOR_SERVICE_URL}/doctors`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        email,
+        specialization: specialization || 'General Physician',
+        consultationFee: consultationFee || 2000,
+        verified: true,
+        verificationStatus: 'approved',
+      }),
+    });
+  } catch (err) {
+    console.error('Failed to sync doctor profile to doctor-service:', err.message);
+  }
+}
+
 const register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, specialization, consultationFee } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email, and password are required.' });
@@ -30,6 +64,8 @@ const register = async (req, res) => {
       password: hashedPassword,
       role: assignedRole,
       isVerified,
+      specialization: assignedRole === 'doctor' ? (specialization || 'General Physician') : '',
+      consultationFee: assignedRole === 'doctor' ? (consultationFee || 2000) : 0,
     });
 
     // Doctors cannot get a token until admin verifies them
@@ -45,6 +81,14 @@ const register = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    // Send welcome notification for patients
+    sendNotification({
+      userId: user._id,
+      type: 'welcome',
+      title: 'Welcome to MediCare+!',
+      message: `Hi ${name}, welcome to MediCare+! You can now browse doctors, book appointments, and use our AI health assistant.`,
+    });
 
     res.status(201).json({
       token,
@@ -215,7 +259,15 @@ const verifyDoctorAccount = async (req, res) => {
       return res.status(400).json({ message: "action must be 'approve' or 'reject'" });
     }
     if (action === 'reject') {
-      await User.findByIdAndDelete(id);
+      const user = await User.findByIdAndDelete(id);
+      if (user) {
+        sendNotification({
+          userId: id,
+          type: 'doctor-rejected',
+          title: 'Registration rejected',
+          message: 'Your doctor registration has been rejected by the admin.',
+        });
+      }
       return res.json({ message: 'Doctor registration rejected and removed.' });
     }
     const user = await User.findByIdAndUpdate(
@@ -224,6 +276,23 @@ const verifyDoctorAccount = async (req, res) => {
       { new: true }
     ).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found.' });
+
+    // Send notification to the doctor about approval
+    sendNotification({
+      userId: user._id,
+      type: 'doctor-verified',
+      title: 'Account verified!',
+      message: `Congratulations ${user.name}! Your doctor account has been verified. You can now log in and start accepting appointments.`,
+    });
+
+    // Create a doctor profile in doctor-service
+    syncDoctorProfile({
+      name: user.name,
+      email: user.email,
+      specialization: user.specialization,
+      consultationFee: user.consultationFee,
+    });
+
     res.json({ message: 'Doctor approved.', user });
   } catch (err) {
     res.status(500).json({ message: 'Server error.', error: err.message });

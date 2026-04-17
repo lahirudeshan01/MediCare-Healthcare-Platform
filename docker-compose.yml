@@ -46,6 +46,8 @@ services:
       - telemedicine-service
       - appointment-service
       - payment-service
+      - patient-service
+      - notification-service
     networks:
       - medicare-network
 
@@ -112,6 +114,8 @@ services:
       - "3003:3003"
     env_file:
       - ./backend/appointment-service/.env
+    depends_on:
+      - notification-service
     networks:
       - medicare-network
 
@@ -130,6 +134,32 @@ services:
     networks:
       - medicare-network
 
+  # ── Notification Service ──────────────────────────────
+  notification-service:
+    build: ./backend/notification-service
+    container_name: medicare-notification-service
+    ports:
+      - "3005:3005"
+    env_file:
+      - ./backend/notification-service/.env
+    networks:
+      - medicare-network
+
+  # ── Patient Service ───────────────────────────────────
+  patient-service:
+    build: ./backend/patient-service
+    container_name: medicare-patient-service
+    ports:
+      - "3006:3006"
+    env_file:
+      - ./backend/patient-service/.env
+    depends_on:
+      - notification-service
+    volumes:
+      - patient-uploads:/usr/src/app/uploads
+    networks:
+      - medicare-network
+
 networks:
   medicare-network:
     driver: bridge
@@ -137,3 +167,4 @@ networks:
 volumes:
   mongo-auth-data:
   payment-uploads:
+  patient-uploads:
