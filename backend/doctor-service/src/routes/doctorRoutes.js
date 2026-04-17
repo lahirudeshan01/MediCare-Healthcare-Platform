@@ -12,6 +12,9 @@ router.get("/doctors/admin/transactions", requireAdmin, controller.getTransactio
 router.patch("/doctors/admin/:id/verify", requireAdmin, controller.verifyDoctor);
 
 // ── Doctor profile ─────────────────────────────────────
+// Public: browse approved doctors (no auth required)
+router.get("/doctors", controller.getVerifiedDoctors);
+
 // Creating a doctor profile is called internally after registration
 router.post("/doctors", verifyToken, controller.createDoctor);
 router.get("/doctors/:id/availability", controller.getAvailability);        // public — patients browse

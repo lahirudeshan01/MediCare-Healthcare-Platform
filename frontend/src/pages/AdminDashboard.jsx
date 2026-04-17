@@ -253,7 +253,6 @@ export function AdminDashboard() {
               className="hidden sm:block text-sm font-medium text-[#86868B] hover:text-[#1D1D1F] px-3 py-1.5">
               Exit to Site
             </button>
-            </div>
             <button
               onClick={handleLogout}
               className="flex items-center gap-1.5 ml-2 text-sm font-medium text-[#86868B] hover:text-[#FF3B30] transition-colors px-3 py-1.5 rounded-lg hover:bg-[#FF3B30]/5">

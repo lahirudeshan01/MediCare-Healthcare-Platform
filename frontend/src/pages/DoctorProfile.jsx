@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   Star,
@@ -12,6 +12,7 @@ import {
 import { GlassCard } from '../components/ui/GlassCard';
 import { AppleButton } from '../components/ui/AppleButton';
 import { StatusBadge } from '../components/ui/StatusBadge';
+import { API_GATEWAY } from '../config/api';
 const TIME_SLOTS = [
 '9:00 AM',
 '9:30 AM',
@@ -42,34 +43,34 @@ const buildNextSevenDays = () => {
 
 export function DoctorProfile() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const { state } = useLocation();
+  const doctor = state?.doctor || {};
   const days = buildNextSevenDays();
-  const doctorApiBase = import.meta.env.VITE_DOCTOR_API || 'http://localhost:3000';
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const doctorId = '1'; // ID of the doctor being viewed — set from route params or browse page
+  const doctorId = id || doctor._id || '';
   const patientId = currentUser.id || currentUser._id || 'guest';
-  const patientName = currentUser.name || 'Patient';
   const token = localStorage.getItem('token') || '';
   const authHeader = { Authorization: `Bearer ${token}` };
   const [selectedDate, setSelectedDate] = useState(days[0].isoDate);
   const [selectedTime, setSelectedTime] = useState('3:00 PM');
   const [consultType, setConsultType] = useState('video');
-  const [appointmentReason, setAppointmentReason] = useState('');
   const [isBooking, setIsBooking] = useState(false);
   const [bookingMessage, setBookingMessage] = useState('');
   const [showModal, setShowModal] = useState(false);
   const selectedDateDetails = days.find((d) => d.isoDate === selectedDate) || days[0];
 
+  const doctorName = doctor.name || 'Doctor';
+  const doctorSpecialty = doctor.specialization || '';
+  const consultationFee = doctor.consultationFee || 2500;
+  const videoFee = consultationFee;
+  const inPersonFee = Math.round(consultationFee * 1.2);
+
   const handleBook = async () => {
     setBookingMessage('');
-
-    if (!appointmentReason.trim()) {
-      setBookingMessage('Please add your reason for this appointment request.');
-      return;
-    }
-
     setIsBooking(true);
     try {
-      const response = await fetch(`${doctorApiBase}/appointments`, {
+      const response = await fetch(`${API_GATEWAY}/appointments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -78,22 +79,21 @@ export function DoctorProfile() {
         body: JSON.stringify({
           doctorId,
           patientId,
-          patientName,
-          reason: appointmentReason.trim(),
-          appointmentDate: selectedDate,
-          appointmentTime: selectedTime,
+          specialty: doctorSpecialty,
+          date: selectedDate,
+          timeSlot: selectedTime,
           consultType
         })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send appointment request');
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to book appointment');
       }
 
       setShowModal(true);
-      setAppointmentReason('');
-    } catch (_error) {
-      setBookingMessage('Failed to send request. Please try again.');
+    } catch (error) {
+      setBookingMessage(error.message || 'Failed to send request. Please try again.');
     } finally {
       setIsBooking(false);
     }
@@ -120,12 +120,12 @@ export function DoctorProfile() {
         <GlassCard className="p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start text-center sm:text-left">
             <div className="w-24 h-24 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-3xl shrink-0 shadow-sm">
-              KP
+              {doctorName.split(' ').filter(Boolean).map((w) => w[0].toUpperCase()).slice(0, 2).join('')}
             </div>
             <div className="flex-1">
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
                 <h1 className="text-3xl font-bold tracking-tight">
-                  Dr. Kumara Perera
+                  {doctorName}
                 </h1>
                 <div className="flex items-center justify-center gap-2">
                   <StatusBadge status="online" />
@@ -135,24 +135,13 @@ export function DoctorProfile() {
                 </div>
               </div>
               <p className="text-lg text-[#86868B] mb-4">
-                Cardiologist • Nawaloka Hospital
+                {doctorSpecialty}
               </p>
 
               <div className="flex flex-wrap justify-center sm:justify-start gap-6 sm:gap-8">
                 <div>
-                  <p className="text-sm text-[#86868B] mb-1">Patients</p>
-                  <p className="font-semibold text-lg">1,200+</p>
-                </div>
-                <div>
-                  <p className="text-sm text-[#86868B] mb-1">Experience</p>
-                  <p className="font-semibold text-lg">15 yrs</p>
-                </div>
-                <div>
-                  <p className="text-sm text-[#86868B] mb-1">Rating</p>
-                  <div className="flex items-center font-semibold text-lg">
-                    4.9{' '}
-                    <Star className="w-5 h-5 text-[#FF9F0A] fill-[#FF9F0A] ml-1" />
-                  </div>
+                  <p className="text-sm text-[#86868B] mb-1">Consultation Fee</p>
+                  <p className="font-semibold text-lg">Rs. {consultationFee.toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -244,7 +233,7 @@ export function DoctorProfile() {
                 </div>
                 <div>
                   <p className="font-semibold text-[#1D1D1F]">Video Consult</p>
-                  <p className="text-sm text-[#86868B]">Rs. 2,500</p>
+                  <p className="text-sm text-[#86868B]">Rs. {videoFee.toLocaleString()}</p>
                 </div>
               </button>
               <button
@@ -260,22 +249,12 @@ export function DoctorProfile() {
                   <p className="font-semibold text-[#1D1D1F]">
                     In-Person Visit
                   </p>
-                  <p className="text-sm text-[#86868B]">Rs. 3,000</p>
+                  <p className="text-sm text-[#86868B]">Rs. {inPersonFee.toLocaleString()}</p>
                 </div>
               </button>
             </div>
 
-            <div className="mt-6">
-              <h3 className="text-sm font-semibold text-[#86868B] uppercase tracking-wider mb-3">
-                Appointment Reason
-              </h3>
-              <textarea
-                rows={3}
-                value={appointmentReason}
-                onChange={(e) => setAppointmentReason(e.target.value)}
-                placeholder="Describe your symptoms or reason for consultation"
-                className="w-full bg-[#F5F5F7] rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#0071E3] resize-none" />
-            </div>
+
           </GlassCard>
         </section>
 
@@ -331,7 +310,7 @@ export function DoctorProfile() {
               {consultType === 'video' ? 'Video' : 'In-Person'}
             </p>
             <p className="font-semibold text-lg">
-              Total: Rs. {consultType === 'video' ? '2,500' : '3,000'}
+              Total: Rs. {(consultType === 'video' ? videoFee : inPersonFee).toLocaleString()}
             </p>
           </div>
           <AppleButton
@@ -415,7 +394,7 @@ export function DoctorProfile() {
               <div className="bg-[#F5F5F7] rounded-2xl p-4 mb-8 text-left space-y-3">
                 <div className="flex justify-between">
                   <span className="text-[#86868B]">Doctor</span>
-                  <span className="font-medium">Dr. Kumara Perera</span>
+                  <span className="font-medium">{doctorName}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#86868B]">Date & Time</span>
@@ -430,7 +409,7 @@ export function DoctorProfile() {
                 <div className="pt-3 border-t border-[#D2D2D7]/50 flex justify-between">
                   <span className="text-[#86868B]">Amount Paid</span>
                   <span className="font-bold">
-                    Rs. {consultType === 'video' ? '2,500' : '3,000'}
+                    Rs. {(consultType === 'video' ? videoFee : inPersonFee).toLocaleString()}
                   </span>
                 </div>
               </div>

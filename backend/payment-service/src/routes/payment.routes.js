@@ -35,6 +35,9 @@ const upload = multer({
   },
 });
 
+// Health check -> GET /payments/health
+router.get("/health", (_req, res) => res.json({ status: "ok", service: "payment-service" }));
+
 router.post(
   "/slips",
   upload.single("slip"),

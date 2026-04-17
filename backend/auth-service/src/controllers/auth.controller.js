@@ -230,4 +230,20 @@ const verifyDoctorAccount = async (req, res) => {
   }
 };
 
-module.exports = { register, login, validate, getUsers, updateUser, deleteUser, getStats, getPendingDoctors, verifyDoctorAccount };
+// Public: list verified doctors for patient browse
+const getDoctors = async (req, res) => {
+  try {
+    const filter = { role: 'doctor', isVerified: true, isActive: true };
+    if (req.query.specialization) {
+      filter.specialization = { $regex: req.query.specialization, $options: 'i' };
+    }
+    const doctors = await User.find(filter)
+      .select('name email specialization consultationFee')
+      .sort({ name: 1 });
+    res.json(doctors);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error.', error: err.message });
+  }
+};
+
+module.exports = { register, login, validate, getUsers, updateUser, deleteUser, getStats, getPendingDoctors, verifyDoctorAccount, getDoctors };

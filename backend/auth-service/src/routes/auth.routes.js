@@ -1,13 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, validate, getUsers, updateUser, deleteUser, getStats, getPendingDoctors, verifyDoctorAccount } = require('../controllers/auth.controller');
+const { register, login, validate, getUsers, updateUser, deleteUser, getStats, getPendingDoctors, verifyDoctorAccount, getDoctors } = require('../controllers/auth.controller');
 const requireAdmin = require('../middleware/requireAdmin');
 
 router.post('/register', register);
 router.post('/login', login);
 router.get('/validate', validate);
 
-// Admin routes
+// Public: browse verified doctors
+router.get('/doctors', getDoctors);
 router.get('/admin/stats', requireAdmin, getStats);
 router.get('/admin/users', requireAdmin, getUsers);
 router.patch('/admin/users/:id', requireAdmin, updateUser);

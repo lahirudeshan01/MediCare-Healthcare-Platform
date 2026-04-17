@@ -22,6 +22,22 @@ const DEFAULT_AVAILABILITY_SLOTS = [
   { day: "Fri", block: "2:00 PM - 5:00 PM", isAvailable: true }
 ];
 
+// Public: list approved/verified doctors for patient browse
+exports.getVerifiedDoctors = async (req, res) => {
+  try {
+    const filter = { verificationStatus: 'approved' };
+    if (req.query.specialization) {
+      filter.specialization = { $regex: req.query.specialization, $options: 'i' };
+    }
+    const doctors = await Doctor.find(filter)
+      .select('name specialization consultationFee verified')
+      .sort({ name: 1 });
+    res.json(doctors);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch doctors', error: err.message });
+  }
+};
+
 // Register Doctor
 exports.createDoctor = async (req, res) => {
   const doctor = new Doctor(req.body);

@@ -44,6 +44,8 @@ services:
       - ai-symptom-service
       - doctor-service
       - telemedicine-service
+      - appointment-service
+      - payment-service
     networks:
       - medicare-network
 
@@ -102,9 +104,36 @@ services:
     networks:
       - medicare-network
 
+  # ── Appointment Service ───────────────────────────────
+  appointment-service:
+    build: ./backend/appointment-service
+    container_name: medicare-appointment-service
+    ports:
+      - "3003:3003"
+    env_file:
+      - ./backend/appointment-service/.env
+    networks:
+      - medicare-network
+
+  # ── Payment Service ───────────────────────────────────
+  payment-service:
+    build: ./backend/payment-service
+    container_name: medicare-payment-service
+    ports:
+      - "3004:3004"
+    env_file:
+      - ./backend/payment-service/.env
+    depends_on:
+      - appointment-service
+    volumes:
+      - payment-uploads:/app/uploads
+    networks:
+      - medicare-network
+
 networks:
   medicare-network:
     driver: bridge
 
 volumes:
   mongo-auth-data:
+  payment-uploads:
