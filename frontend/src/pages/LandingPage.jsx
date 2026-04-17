@@ -144,17 +144,14 @@ export function LandingPage() {
               )}
             </div>
             <div className="flex items-center gap-4">
-              {/* Sign In is temporarily disabled until auth flow is ready */}
-              {/*
               <AppleButton
                 variant="ghost"
                 size="sm"
                 className="hidden md:inline-flex"
-                onClick={() => navigate('/auth')}>
+                onClick={() => navigate('/auth', { state: { tab: 'login' } })}>
                 Sign In
               </AppleButton>
-              */}
-              <AppleButton size="sm" onClick={() => navigate('/auth')}>
+              <AppleButton size="sm" onClick={() => navigate('/auth', { state: { tab: 'register' } })}>
                 Get Started
               </AppleButton>
             </div>
@@ -212,8 +209,7 @@ export function LandingPage() {
               <AppleButton
                 size="lg"
                 className="w-full sm:w-auto"
-                onClick={() => navigate('/auth')}>
-                
+                onClick={() => navigate('/auth', { state: { tab: 'register' } })}>
                 Create Account
               </AppleButton>
               <AppleButton
@@ -381,7 +377,7 @@ export function LandingPage() {
                     </li>
                   )}
                 </ul>
-                <AppleButton size="lg" onClick={() => navigate('/auth')}>
+                <AppleButton size="lg" onClick={() => navigate('/auth', { state: { tab: 'register' } })}>
                   Start a Consultation
                 </AppleButton>
               </div>
@@ -492,7 +488,7 @@ export function LandingPage() {
                 suggest possible causes, and recommend the right specialist to
                 see.
               </p>
-              <AppleButton size="lg" onClick={() => navigate('/auth')}>
+              <AppleButton size="lg" onClick={() => navigate('/auth', { state: { tab: 'register' } })}>
                 Try Symptom Checker
               </AppleButton>
             </div>

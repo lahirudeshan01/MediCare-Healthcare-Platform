@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Activity, Eye, EyeOff, Clock, CheckCircle } from 'lucide-react';
 import { AppleButton } from '../components/ui/AppleButton';
 import axios from 'axios';
 import { AUTH_SERVICE } from '../config/api';
 export function AuthPage() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState('login');
+  const location = useLocation();
+  const [tab, setTab] = useState(location.state?.tab || 'login');
   const [role, setRole] = useState('patient');
   const [showPassword, setShowPassword] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
