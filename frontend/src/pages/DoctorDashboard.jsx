@@ -574,6 +574,12 @@ export function DoctorDashboard() {
   };
 
   useEffect(() => {
+    const t = localStorage.getItem('token');
+    const u = JSON.parse(localStorage.getItem('user') || '{}');
+    if (!t || u.role !== 'doctor') navigate('/auth', { replace: true });
+  }, []);
+
+  useEffect(() => {
     loadPrescriptions();
     loadAppointments();
     loadAvailability();
@@ -708,7 +714,7 @@ export function DoctorDashboard() {
           </a>
           <a
             href="#"
-            onClick={() => navigate('/')}
+            onClick={(e) => { e.preventDefault(); localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/auth', { replace: true }); }}
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-[#FF3B30] hover:bg-[#FF3B30]/10 transition-colors">
             
             <LogOut className="w-5 h-5" /> Sign Out

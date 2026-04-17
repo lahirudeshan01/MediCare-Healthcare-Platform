@@ -2,6 +2,14 @@ const express = require("express");
 const router = express.Router();
 const controller = require("../controllers/doctorController");
 const verifyToken = require("../middleware/verifyToken");
+const requireAdmin = require("../middleware/requireAdmin");
+
+// ── Admin routes ────────────────────────────────────────
+router.get("/doctors/admin/stats", requireAdmin, controller.getDoctorAdminStats);
+router.get("/doctors/admin/pending", requireAdmin, controller.getPendingDoctors);
+router.get("/doctors/admin/all", requireAdmin, controller.getAllDoctorsAdmin);
+router.get("/doctors/admin/transactions", requireAdmin, controller.getTransactions);
+router.patch("/doctors/admin/:id/verify", requireAdmin, controller.verifyDoctor);
 
 // ── Doctor profile ─────────────────────────────────────
 // Creating a doctor profile is called internally after registration

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Activity, Eye, EyeOff } from 'lucide-react';
+import { Activity, Eye, EyeOff, Clock, CheckCircle } from 'lucide-react';
 import { AppleButton } from '../components/ui/AppleButton';
 import axios from 'axios';
 import { AUTH_SERVICE } from '../config/api';
@@ -17,6 +17,8 @@ export function AuthPage() {
   const [regPassword, setRegPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState('');
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -51,6 +53,12 @@ export function AuthPage() {
         password: regPassword,
         role,
       });
+      // Doctor accounts need admin approval before login
+      if (res.data.pendingVerification) {
+        setPendingEmail(regEmail);
+        setPendingApproval(true);
+        return;
+      }
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       const userRole = res.data.user.role;
@@ -75,7 +83,36 @@ export function AuthPage() {
         <span className="text-2xl font-semibold tracking-tight">MediCare+</span>
       </div>
 
-      <motion.div
+      {/* ── Pending Approval Screen ── */}
+      {pendingApproval ? (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-[#D2D2D7]/50 p-10 text-center">
+          <div className="w-16 h-16 rounded-full bg-[#FF9F0A]/10 flex items-center justify-center mx-auto mb-5">
+            <Clock className="w-8 h-8 text-[#FF9F0A]" />
+          </div>
+          <h2 className="text-xl font-bold text-[#1D1D1F] mb-2">Registration Submitted!</h2>
+          <p className="text-sm text-[#86868B] mb-1">Your doctor account</p>
+          <p className="text-sm font-semibold text-[#1D1D1F] mb-4">{pendingEmail}</p>
+          <p className="text-sm text-[#86868B] mb-8">
+            is pending admin verification. You'll be able to sign in once an admin approves your account.
+          </p>
+          <div className="space-y-3">
+            <button
+              onClick={() => { setPendingApproval(false); setTab('login'); }}
+              className="w-full py-3 bg-[#0071E3] hover:bg-[#0077ED] text-white text-sm font-semibold rounded-xl transition-colors">
+              Back to Sign In
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="w-full py-3 bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#1D1D1F] text-sm font-medium rounded-xl transition-colors">
+              Go to Home
+            </button>
+          </div>
+        </motion.div>
+      ) : (
+        <motion.div
         initial={{
           opacity: 0,
           y: 20
@@ -435,6 +472,7 @@ export function AuthPage() {
           </AnimatePresence>
         </div>
       </motion.div>
+      )}
 
       <p className="mt-8 text-sm text-[#86868B]">
         {tab === 'login' ?

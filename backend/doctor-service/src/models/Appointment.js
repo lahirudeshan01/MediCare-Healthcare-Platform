@@ -17,7 +17,8 @@ const appointmentSchema = new mongoose.Schema(
       type: String,
       enum: ["pending", "approved", "rejected"],
       default: "pending"
-    }
+    },
+    fee: { type: Number, default: 2000 },
   },
   {
     timestamps: true

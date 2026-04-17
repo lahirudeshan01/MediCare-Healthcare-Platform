@@ -259,3 +259,106 @@ exports.deletePrescription = async (req, res) => {
     return res.status(500).json({ message: "Failed to delete prescription" });
   }
 };
+
+// ── Admin functions ────────────────────────────────────────────────────────
+
+// Admin: get all unverified doctors
+exports.getPendingDoctors = async (req, res) => {
+  try {
+    const doctors = await Doctor.find({ verificationStatus: 'pending' }).sort({ createdAt: -1 });
+    res.json(doctors);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch pending doctors", error: err.message });
+  }
+};
+
+// Admin: approve or reject a doctor
+exports.verifyDoctor = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body;
+
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ message: "action must be 'approve' or 'reject'" });
+    }
+
+    const doctor = await Doctor.findByIdAndUpdate(
+      id,
+      {
+        verificationStatus: action === 'approve' ? 'approved' : 'rejected',
+        verified: action === 'approve',
+      },
+      { new: true }
+    );
+
+    if (!doctor) return res.status(404).json({ message: "Doctor not found" });
+    res.json(doctor);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to update verification", error: err.message });
+  }
+};
+
+// Admin: get all doctors
+exports.getAllDoctorsAdmin = async (req, res) => {
+  try {
+    const doctors = await Doctor.find().sort({ createdAt: -1 });
+    res.json(doctors);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch doctors", error: err.message });
+  }
+};
+
+// Admin: platform stats from doctor-service
+exports.getDoctorAdminStats = async (req, res) => {
+  try {
+    const [
+      totalDoctors, verifiedDoctors, pendingDoctors, rejectedDoctors,
+      totalAppointments, approvedAppointments
+    ] = await Promise.all([
+      Doctor.countDocuments(),
+      Doctor.countDocuments({ verificationStatus: 'approved' }),
+      Doctor.countDocuments({ verificationStatus: 'pending' }),
+      Doctor.countDocuments({ verificationStatus: 'rejected' }),
+      Appointment.countDocuments(),
+      Appointment.countDocuments({ status: 'approved' }),
+    ]);
+
+    const revenueResult = await Appointment.aggregate([
+      { $match: { status: 'approved' } },
+      { $group: { _id: null, total: { $sum: '$fee' } } }
+    ]);
+    const totalRevenue = revenueResult[0]?.total || 0;
+
+    res.json({
+      totalDoctors, verifiedDoctors, pendingDoctors, rejectedDoctors,
+      totalAppointments, approvedAppointments, totalRevenue,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch stats", error: err.message });
+  }
+};
+
+// Admin: get approved appointments as financial transactions
+exports.getTransactions = async (req, res) => {
+  try {
+    const appointments = await Appointment.find({ status: 'approved' }).sort({ createdAt: -1 }).limit(100);
+
+    const transactions = await Promise.all(appointments.map(async (apt) => {
+      const doctor = await Doctor.findById(apt.doctorId).select('name specialization consultationFee');
+      return {
+        id: apt._id,
+        patientName: apt.patientName,
+        doctorName: doctor?.name || 'Unknown Doctor',
+        specialization: doctor?.specialization || '',
+        consultType: apt.consultType,
+        date: apt.appointmentDate,
+        fee: apt.fee || doctor?.consultationFee || 2000,
+        createdAt: apt.createdAt,
+      };
+    }));
+
+    res.json(transactions);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch transactions", error: err.message });
+  }
+};

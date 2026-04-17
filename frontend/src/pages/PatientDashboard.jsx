@@ -100,6 +100,12 @@ export function PatientDashboard() {
     try { localStorage.setItem(PATIENT_CHAT_KEY, JSON.stringify(messages)); } catch {}
   }, [messages, PATIENT_CHAT_KEY]);
 
+  useEffect(() => {
+    const t = localStorage.getItem('token');
+    const u = JSON.parse(localStorage.getItem('user') || '{}');
+    if (!t || u.role !== 'patient') navigate('/auth', { replace: true });
+  }, []);
+
   const renderAIContent = (msg) => {
     if (msg.contentType === 'assessment') {
       const { suggested_specialty, urgency, overview, possible_conditions, recommendations, warning_signs, advice } = msg.data;
@@ -1251,7 +1257,7 @@ export function PatientDashboard() {
             Settings
           </button>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/auth', { replace: true }); }}
             className="w-full flex items-center gap-3 px-4 py-3 text-[#FF3B30] hover:bg-[#FF3B30]/10 rounded-xl font-medium transition-colors">
             
             <LogOut className="w-5 h-5" /> Sign Out
