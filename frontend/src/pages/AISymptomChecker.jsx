@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Sparkles,
   ArrowUp,
-  Paperclip,
   ChevronLeft,
   AlertTriangle } from
 'lucide-react';
@@ -23,23 +22,63 @@ const COMMON_SYMPTOMS = [
 'Sore Throat',
 'Shortness of Breath'];
 
+const DEFAULT_MSG = { id: '1', type: 'ai', content: "Hi 👋 I'm your AI health assistant. Tell me about your symptoms and I'll provide preliminary guidance. Remember, this isn't a substitute for professional medical advice." };
+
 export function AISymptomChecker() {
   const navigate = useNavigate();
+  const _user = JSON.parse(localStorage.getItem('user') || '{}');
+  const _userId = _user.id || _user.email || 'guest';
+  const STORAGE_KEY = `ai_symptom_chat_${_userId}`;
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
-  const [messages, setMessages] = useState([
-  {
-    id: '1',
-    type: 'ai',
-    content:
-    "Hi Sarah 👋 I'm your AI health assistant. Tell me about your symptoms and I'll provide preliminary guidance. Remember, this isn't a substitute for professional medical advice."
-  }]
-  );
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [DEFAULT_MSG];
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages)); } catch {}
+  }, [messages, STORAGE_KEY]);
+
+  const renderContent = (msg) => {
+    if (msg.contentType === 'assessment') {
+      const { suggested_specialty, urgency, overview, possible_conditions, recommendations, warning_signs, advice } = msg.data;
+      const urgencyColor = { low: { bg: 'bg-green-100', text: 'text-green-700' }, medium: { bg: 'bg-[#FF9F0A]/10', text: 'text-[#FF9F0A]' }, high: { bg: 'bg-red-100', text: 'text-red-700' } };
+      const colors = urgencyColor[urgency] || urgencyColor.medium;
+      return (
+        <div className="space-y-4">
+          <p>Based on your symptoms, here is a detailed assessment:</p>
+          <div className="bg-white border border-[#D2D2D7]/50 rounded-xl p-4 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold">Preliminary Assessment</h4>
+              <span className={`px-2 py-1 ${colors.bg} ${colors.text} text-xs font-medium rounded-md capitalize`}>{urgency} urgency</span>
+            </div>
+            {overview && (<div className="bg-[#F5F5F7] p-3 rounded-lg"><p className="text-sm font-medium mb-1">Overview:</p><p className="text-sm text-[#1D1D1F] leading-relaxed">{overview}</p></div>)}
+            {possible_conditions && possible_conditions.length > 0 && (<div><p className="text-sm font-medium mb-2">Possible Conditions:</p><div className="flex flex-wrap gap-2">{possible_conditions.map((c, i) => (<span key={i} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-md">{c}</span>))}</div></div>)}
+            {recommendations && recommendations.length > 0 && (<div><p className="text-sm font-medium mb-2">Recommendations:</p><ul className="text-sm text-[#86868B] space-y-1 list-disc pl-4">{recommendations.map((r, i) => <li key={i}>{r}</li>)}</ul></div>)}
+            {warning_signs && (<div className="bg-red-50 p-3 rounded-lg"><p className="text-sm font-medium text-red-700 mb-1">Seek Emergency Care If:</p><p className="text-sm text-red-600">{warning_signs}</p></div>)}
+            <div className="bg-[#F5F5F7] p-3 rounded-lg"><p className="text-sm font-medium mb-1">Summary Advice:</p><p className="text-sm text-[#1D1D1F]">{advice}</p></div>
+            <div className="flex items-center justify-between pt-3 border-t border-[#D2D2D7]/50">
+              <span className="text-sm font-medium">Recommended: {suggested_specialty}</span>
+              <AppleButton size="sm" onClick={() => navigate('/doctors')}>Book Appointment</AppleButton>
+            </div>
+          </div>
+          <div className="flex gap-2 items-start bg-[#FF9F0A]/10 p-3 rounded-xl text-sm text-[#FF9F0A]">
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <p>This is an AI-generated suggestion and not a medical diagnosis. Please consult a healthcare professional for proper evaluation.</p>
+          </div>
+        </div>
+      );
+    }
+    return <p className="text-[15px] leading-relaxed">{msg.content}</p>;
+  };
+
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: 'smooth'
-    });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
   useEffect(() => {
     scrollToBottom();
@@ -56,61 +95,23 @@ export function AISymptomChecker() {
     setIsTyping(true);
 
     try {
+      const token = localStorage.getItem('token');
       const res = await axios.post(`${AI_SERVICE}/ai/check-symptoms`, {
         symptoms: text,
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      const { suggested_specialty, urgency, advice } = res.data;
-
-      const urgencyColor = {
-        low: { bg: 'bg-green-100', text: 'text-green-700' },
-        medium: { bg: 'bg-[#FF9F0A]/10', text: 'text-[#FF9F0A]' },
-        high: { bg: 'bg-red-100', text: 'text-red-700' },
-      };
-      const colors = urgencyColor[urgency] || urgencyColor.medium;
-
-      const aiResponse = (
-        <div className="space-y-4">
-          <p>Based on your symptoms, here is a preliminary assessment:</p>
-          <div className="bg-white border border-[#D2D2D7]/50 rounded-xl p-4 shadow-sm">
-            <h4 className="font-semibold mb-3">Preliminary Assessment</h4>
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm text-[#86868B]">Urgency:</span>
-              <span className={`px-2 py-1 ${colors.bg} ${colors.text} text-xs font-medium rounded-md capitalize`}>
-                {urgency}
-              </span>
-            </div>
-            <div className="bg-[#F5F5F7] p-3 rounded-lg mb-4">
-              <p className="text-sm font-medium mb-1">Advice:</p>
-              <p className="text-sm text-[#86868B]">{advice}</p>
-            </div>
-            <div className="flex items-center justify-between pt-3 border-t border-[#D2D2D7]/50">
-              <span className="text-sm font-medium">Recommended: {suggested_specialty}</span>
-              <AppleButton size="sm" onClick={() => navigate('/doctors')}>
-                Book Appointment
-              </AppleButton>
-            </div>
-          </div>
-          <div className="flex gap-2 items-start bg-[#FF9F0A]/10 p-3 rounded-xl text-sm text-[#FF9F0A]">
-            <AlertTriangle className="w-5 h-5 shrink-0" />
-            <p>This is an AI-generated suggestion and not a medical diagnosis. Please consult a healthcare professional for proper evaluation.</p>
-          </div>
-        </div>
-      );
-
       setIsTyping(false);
       setMessages((prev) => [
         ...prev,
-        { id: Date.now().toString(), type: 'ai', content: aiResponse },
+        { id: Date.now().toString(), type: 'ai', contentType: 'assessment', data: res.data },
       ]);
     } catch (err) {
       setIsTyping(false);
+      const errMsg = err.response?.data?.message || 'Sorry, I encountered an error analyzing your symptoms. Please try again later.';
       setMessages((prev) => [
         ...prev,
-        {
-          id: Date.now().toString(),
-          type: 'ai',
-          content: 'Sorry, I encountered an error analyzing your symptoms. Please try again later.',
-        },
+        { id: Date.now().toString(), type: 'ai', content: errMsg },
       ]);
     }
   };
@@ -163,11 +164,7 @@ export function AISymptomChecker() {
                 <div
                 className={`max-w-[85%] md:max-w-[75%] ${msg.type === 'user' ? 'bg-[#0071E3] text-white rounded-2xl rounded-tr-sm px-4 py-3' : 'bg-[#F5F5F7] text-[#1D1D1F] rounded-2xl rounded-tl-sm px-4 py-3'}`}>
                 
-                  {typeof msg.content === 'string' ?
-                <p className="text-[15px] leading-relaxed">{msg.content}</p> :
-
-                msg.content
-                }
+                  {renderContent(msg)}
                 </div>
               </motion.div>
             )}
@@ -255,9 +252,6 @@ export function AISymptomChecker() {
       {/* Input Area */}
       <div className="bg-white border-t border-[#D2D2D7]/50 p-4 pb-8 md:pb-4">
         <div className="max-w-3xl mx-auto relative flex items-end gap-2">
-          <button className="p-3 text-[#86868B] hover:text-[#1D1D1F] transition-colors shrink-0">
-            <Paperclip className="w-6 h-6" />
-          </button>
           <div className="flex-1 bg-[#F5F5F7] rounded-2xl border border-transparent focus-within:border-[#D2D2D7] focus-within:bg-white transition-all overflow-hidden flex items-end">
             <textarea
               value={input}

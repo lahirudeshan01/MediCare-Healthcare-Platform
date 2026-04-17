@@ -2,27 +2,109 @@ version: '3.9'
 
 services:
 
+  # ── Message Broker ────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: medicare-rabbitmq
+    ports:
+      - "5672:5672"       # AMQP
+      - "15672:15672"     # Management UI  (guest / guest)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - medicare-network
+
+  # ── Databases ─────────────────────────────────────────
+  mongo-auth:
+    image: mongo:6
+    container_name: medicare-mongo-auth
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-auth-data:/data/db
+    networks:
+      - medicare-network
+
+  # ── API Gateway ───────────────────────────────────────
+  api-gateway:
+    build: ./backend/api-gateway
+    container_name: medicare-api-gateway
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./backend/api-gateway/.env
+    depends_on:
+      - auth-service
+      - ai-symptom-service
+      - doctor-service
+      - telemedicine-service
+    networks:
+      - medicare-network
+
+  # ── Auth Service ──────────────────────────────────────
+  auth-service:
+    build: ./backend/auth-service
+    container_name: medicare-auth-service
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./backend/auth-service/.env
+    networks:
+      - medicare-network
+
+  # ── AI Symptom Service ────────────────────────────────
+  ai-symptom-service:
+    build: ./backend/ai-symptom-service
+    container_name: medicare-ai-symptom-service
+    ports:
+      - "3002:3002"
+    env_file:
+      - ./backend/ai-symptom-service/.env
+    networks:
+      - medicare-network
+
+  # ── Doctor Service ────────────────────────────────────
   doctor-service:
     build: ./backend/doctor-service
-    container_name: doctor-service
+    container_name: medicare-doctor-service
     ports:
       - "8082:8082"
+    env_file:
+      - ./backend/doctor-service/.env
     environment:
-      - PORT=${DOCTOR_PORT}
-      - MONGO_URI=${DOCTOR_MONGO_URI}
-    volumes:
-      - doctor_data:/app/data
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - medicare-network
 
+  # ── Telemedicine Service ──────────────────────────────
   telemedicine-service:
     build: ./backend/telemedicine-service
-    container_name: telemedicine-service
+    container_name: medicare-telemedicine-service
     ports:
       - "8085:8085"
+    env_file:
+      - ./backend/telemedicine-service/.env
     environment:
-      - PORT=${TELEMEDICINE_PORT}
-      - MONGO_URI=${TELEMEDICINE_MONGO_URI}
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
       - JITSI_BASE_URL=https://meet.jit.si
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - medicare-network
+
+networks:
+  medicare-network:
+    driver: bridge
 
 volumes:
-  doctor_data:
-  telemedicine_data:
+  mongo-auth-data:

@@ -1,6 +1,27 @@
 version: '3.8'
 
+# This compose file is for backend-only local development.
+# For the full stack (including frontend), use the root docker-compose.yml.
+
 services:
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: medicare-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - medicare-network
+
   api-gateway:
     build: ./api-gateway
     container_name: medicare-api-gateway
@@ -14,17 +35,18 @@ services:
       - APPOINTMENT_SERVICE_URL=http://appointment-service:3003
       - PAYMENT_SERVICE_URL=http://payment-service:3004
       - NOTIFICATION_SERVICE_URL=http://notification-service:3005
+      - DOCTOR_SERVICE_URL=http://doctor-service:8082
+      - TELEMEDICINE_SERVICE_URL=http://telemedicine-service:8085
     depends_on:
       - auth-service
       - ai-symptom-service
       - appointment-service
       - payment-service
       - notification-service
-    healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/health']
-      interval: 15s
-      timeout: 5s
-      retries: 3
+      - doctor-service
+      - telemedicine-service
+    networks:
+      - medicare-network
 
   auth-service:
     build: ./auth-service
@@ -33,11 +55,8 @@ services:
       - '3001:3001'
     env_file:
       - ./auth-service/.env
-    healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3001/health']
-      interval: 15s
-      timeout: 5s
-      retries: 3
+    networks:
+      - medicare-network
 
   ai-symptom-service:
     build: ./ai-symptom-service
@@ -46,11 +65,8 @@ services:
       - '3002:3002'
     env_file:
       - ./ai-symptom-service/.env
-    healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3002/health']
-      interval: 15s
-      timeout: 5s
-      retries: 3
+    networks:
+      - medicare-network
 
   appointment-service:
     build: ./appointment-service
@@ -63,11 +79,8 @@ services:
       - NOTIFICATION_SERVICE_URL=http://notification-service:3005
     depends_on:
       - notification-service
-    healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3003/health']
-      interval: 15s
-      timeout: 5s
-      retries: 3
+    networks:
+      - medicare-network
 
   payment-service:
     build: ./payment-service
@@ -76,11 +89,8 @@ services:
       - '3004:3004'
     env_file:
       - ./payment-service/.env
-    healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3004/health']
-      interval: 15s
-      timeout: 5s
-      retries: 3
+    networks:
+      - medicare-network
 
   notification-service:
     build: ./notification-service
@@ -89,8 +99,43 @@ services:
       - '3005:3005'
     env_file:
       - ./notification-service/.env
-    healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3005/health']
-      interval: 15s
-      timeout: 5s
-      retries: 3
+    networks:
+      - medicare-network
+
+  doctor-service:
+    build: ./doctor-service
+    container_name: medicare-doctor-service
+    ports:
+      - '8082:8082'
+    env_file:
+      - ./doctor-service/.env
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - medicare-network
+
+  telemedicine-service:
+    build: ./telemedicine-service
+    container_name: medicare-telemedicine-service
+    ports:
+      - '8085:8085'
+    env_file:
+      - ./telemedicine-service/.env
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - JITSI_BASE_URL=https://meet.jit.si
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - medicare-network
+
+networks:
+  medicare-network:
+    driver: bridge
+
+volumes:
+  mongo-auth-data:
