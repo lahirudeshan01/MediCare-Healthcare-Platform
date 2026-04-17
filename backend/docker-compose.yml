@@ -35,6 +35,7 @@ services:
       - APPOINTMENT_SERVICE_URL=http://appointment-service:3003
       - PAYMENT_SERVICE_URL=http://payment-service:3004
       - NOTIFICATION_SERVICE_URL=http://notification-service:3005
+      - PATIENT_SERVICE_URL=http://patient-service:3006
       - DOCTOR_SERVICE_URL=http://doctor-service:8082
       - TELEMEDICINE_SERVICE_URL=http://telemedicine-service:8085
     depends_on:
@@ -43,8 +44,14 @@ services:
       - appointment-service
       - payment-service
       - notification-service
+      - patient-service
       - doctor-service
       - telemedicine-service
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
     networks:
       - medicare-network
 
@@ -55,6 +62,11 @@ services:
       - '3001:3001'
     env_file:
       - ./auth-service/.env
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3001/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
     networks:
       - medicare-network
 
@@ -65,6 +77,11 @@ services:
       - '3002:3002'
     env_file:
       - ./ai-symptom-service/.env
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3002/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
     networks:
       - medicare-network
 
@@ -79,6 +96,11 @@ services:
       - NOTIFICATION_SERVICE_URL=http://notification-service:3005
     depends_on:
       - notification-service
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3003/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
     networks:
       - medicare-network
 
@@ -89,6 +111,11 @@ services:
       - '3004:3004'
     env_file:
       - ./payment-service/.env
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3004/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
     networks:
       - medicare-network
 
@@ -99,6 +126,21 @@ services:
       - '3005:3005'
     env_file:
       - ./notification-service/.env
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3005/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - medicare-network
+
+  patient-service:
+    build: ./patient-service
+    container_name: medicare-patient-service
+    ports:
+      - '3006:3006'
+    env_file:
+      - ./patient-service/.env
     networks:
       - medicare-network
 

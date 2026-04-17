@@ -21,7 +21,12 @@ const storage = multer.diskStorage({
   },
 });
 
-const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp"];
+const allowedMimeTypes = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+];
 const upload = multer({
   storage,
   limits: {
@@ -29,20 +34,19 @@ const upload = multer({
   },
   fileFilter: (_req, file, cb) => {
     if (!allowedMimeTypes.includes(file.mimetype)) {
-      return cb(new Error("Only JPG, PNG, or WEBP images are allowed"));
+      return cb(new Error("Only JPG, PNG, WEBP, or PDF files are allowed"));
     }
     return cb(null, true);
   },
 });
-
-// Health check -> GET /payments/health
-router.get("/health", (_req, res) => res.json({ status: "ok", service: "payment-service" }));
 
 router.post(
   "/slips",
   upload.single("slip"),
   paymentController.uploadPaymentSlip,
 );
+// Health check -> GET /payments/health
+router.get("/health", (_req, res) => res.json({ status: "ok", service: "payment-service" }));
 router.get("/", paymentController.getAllPayments);
 router.patch("/:paymentId/approve", paymentController.approvePaymentSlip);
 router.patch("/:paymentId/reject", paymentController.rejectPaymentSlip);

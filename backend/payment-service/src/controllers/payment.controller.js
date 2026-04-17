@@ -1,43 +1,81 @@
 const PaymentSlip = require("../models/PaymentSlip");
 
 const APPOINTMENT_SERVICE_URL =
-  process.env.APPOINTMENT_SERVICE_URL || "http://medicare-appointment-service:3003";
+  process.env.APPOINTMENT_SERVICE_URL || "http://localhost:3003";
 
 async function markAppointmentPaymentPending(appointmentId, paymentSlip) {
-  const response = await fetch(
-    `${APPOINTMENT_SERVICE_URL}/appointments/${appointmentId}/payment-pending`,
-    {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paymentSlip }),
-    },
-  );
+  const candidateUrls = [
+    APPOINTMENT_SERVICE_URL,
+    "http://localhost:3003",
+    "http://appointment-service:3003",
+  ];
+  const uniqueCandidateUrls = [...new Set(candidateUrls)];
+  const failures = [];
 
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(
-      `Appointment service returned ${response.status}: ${body}`,
-    );
+  for (const baseUrl of uniqueCandidateUrls) {
+    try {
+      const response = await fetch(
+        `${baseUrl}/appointments/${appointmentId}/payment-pending`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ paymentSlip }),
+        },
+      );
+
+      if (!response.ok) {
+        const body = await response.text();
+        failures.push(`${baseUrl} -> ${response.status} ${body}`);
+        continue;
+      }
+
+      return response.json();
+    } catch (error) {
+      failures.push(`${baseUrl} -> ${error.message}`);
+    }
   }
 
-  return response.json();
+  throw new Error(
+    `Failed to update appointment payment status. Attempts: ${failures.join(" | ")}`,
+  );
 }
 
 async function callAppointmentService(path, method = "PATCH", body = {}) {
-  const response = await fetch(`${APPOINTMENT_SERVICE_URL}${path}`, {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const candidateUrls = [
+    APPOINTMENT_SERVICE_URL,
+    "http://localhost:3003",
+    "http://appointment-service:3003",
+  ];
+  const uniqueCandidateUrls = [...new Set(candidateUrls)];
+  const failures = [];
 
-  if (!response.ok) {
-    const responseText = await response.text();
-    throw new Error(
-      `Appointment service returned ${response.status}: ${responseText}`,
-    );
+  for (const baseUrl of uniqueCandidateUrls) {
+    try {
+      const response = await fetch(`${baseUrl}${path}`, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const responseText = await response.text();
+        failures.push(`${baseUrl} -> ${response.status} ${responseText}`);
+        continue;
+      }
+
+      return response.json();
+    } catch (error) {
+      failures.push(`${baseUrl} -> ${error.message}`);
+    }
   }
 
-  return response.json();
+  throw new Error(
+    `Failed appointment service sync. Attempts: ${failures.join(" | ")}`,
+  );
 }
 
 exports.uploadPaymentSlip = async (req, res) => {

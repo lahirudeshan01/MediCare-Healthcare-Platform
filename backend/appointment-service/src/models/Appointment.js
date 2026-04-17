@@ -29,7 +29,7 @@ const appointmentSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ["UNPAID", "PENDING", "PAID", "REJECTED"],
+      enum: ["UNPAID", "PENDING", "COMPLETED", "PAID", "REJECTED"],
       default: "UNPAID",
     },
     paymentSlip: {
