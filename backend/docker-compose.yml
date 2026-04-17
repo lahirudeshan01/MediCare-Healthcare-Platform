@@ -29,9 +29,20 @@ services:
       - '3000:3000'
     env_file:
       - ./api-gateway/.env
+    environment:
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - AI_SYMPTOM_SERVICE_URL=http://ai-symptom-service:3002
+      - APPOINTMENT_SERVICE_URL=http://appointment-service:3003
+      - PAYMENT_SERVICE_URL=http://payment-service:3004
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3005
+      - DOCTOR_SERVICE_URL=http://doctor-service:8082
+      - TELEMEDICINE_SERVICE_URL=http://telemedicine-service:8085
     depends_on:
       - auth-service
       - ai-symptom-service
+      - appointment-service
+      - payment-service
+      - notification-service
       - doctor-service
       - telemedicine-service
     networks:
@@ -54,6 +65,40 @@ services:
       - '3002:3002'
     env_file:
       - ./ai-symptom-service/.env
+    networks:
+      - medicare-network
+
+  appointment-service:
+    build: ./appointment-service
+    container_name: medicare-appointment-service
+    ports:
+      - '3003:3003'
+    env_file:
+      - ./appointment-service/.env
+    environment:
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3005
+    depends_on:
+      - notification-service
+    networks:
+      - medicare-network
+
+  payment-service:
+    build: ./payment-service
+    container_name: medicare-payment-service
+    ports:
+      - '3004:3004'
+    env_file:
+      - ./payment-service/.env
+    networks:
+      - medicare-network
+
+  notification-service:
+    build: ./notification-service
+    container_name: medicare-notification-service
+    ports:
+      - '3005:3005'
+    env_file:
+      - ./notification-service/.env
     networks:
       - medicare-network
 

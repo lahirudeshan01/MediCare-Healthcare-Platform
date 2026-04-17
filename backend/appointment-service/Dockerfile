@@ -1,10 +1,12 @@
 FROM node:20-alpine
 
 WORKDIR /app
+
 COPY package*.json ./
-RUN npm install --omit=dev
+RUN npm install
 
 COPY . .
 
-EXPOSE 8082
+EXPOSE 3003
+
 CMD ["npm", "start"]
