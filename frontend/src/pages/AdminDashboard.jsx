@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -7,12 +7,13 @@ import {
   UserCheck, UserX, DollarSign, AlertCircle,
 } from 'lucide-react';
 import axios from 'axios';
-import { AUTH_SERVICE, DOCTOR_SERVICE } from '../config/api';
+import { AUTH_SERVICE, DOCTOR_SERVICE, API_GATEWAY, PAYMENT_ROUTES } from '../config/api';
+import { AppleButton } from '../components/ui/AppleButton';
 import { GlassCard } from '../components/ui/GlassCard';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { SearchBar } from '../components/ui/SearchBar';
 
-const TABS = ['Overview', 'Users', 'Verification', 'Transactions'];
+const TABS = ['Overview', 'Users', 'Verification', 'Transactions', 'Payments'];
 
 export function AdminDashboard() {
   const navigate = useNavigate();
@@ -35,6 +36,12 @@ export function AdminDashboard() {
 
   // Transactions
   const [transactions, setTransactions] = useState([]);
+
+  // Payments
+  const [pendingPayments, setPendingPayments] = useState([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [paymentActionMessage, setPaymentActionMessage] = useState('');
+  const [processingPaymentId, setProcessingPaymentId] = useState('');
 
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
@@ -142,6 +149,74 @@ export function AdminDashboard() {
     if (tab === 'Transactions') fetchTransactions();
   }, [tab]);
 
+  // Payments tab
+  const fetchPendingPayments = useCallback(async () => {
+    try {
+      setLoadingPayments(true);
+      const response = await fetch(`${PAYMENT_ROUTES.base}?status=PENDING`, { headers });
+      if (!response.ok) throw new Error('Failed to load pending payment slips');
+      const data = await response.json();
+      setPendingPayments(Array.isArray(data) ? data : []);
+      setPaymentActionMessage('');
+    } catch (error) {
+      setPaymentActionMessage(error.message);
+    } finally {
+      setLoadingPayments(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'Payments') fetchPendingPayments();
+  }, [tab]);
+
+  const buildSlipUrl = (publicUrl) => {
+    if (!publicUrl) return '#';
+    if (publicUrl.startsWith('http://') || publicUrl.startsWith('https://')) return publicUrl;
+    return `${API_GATEWAY}${publicUrl}`;
+  };
+
+  const handleApprove = async (paymentId) => {
+    try {
+      setProcessingPaymentId(paymentId);
+      const response = await fetch(PAYMENT_ROUTES.approve(paymentId), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewedBy: 'admin' }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.message || 'Failed to approve payment');
+      }
+      setPaymentActionMessage('Payment approved. Appointment payment verified.');
+      await fetchPendingPayments();
+    } catch (error) {
+      setPaymentActionMessage(error.message);
+    } finally {
+      setProcessingPaymentId('');
+    }
+  };
+
+  const handleReject = async (paymentId) => {
+    try {
+      setProcessingPaymentId(paymentId);
+      const response = await fetch(PAYMENT_ROUTES.reject(paymentId), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewedBy: 'admin', reason: 'Rejected by admin during verification' }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.message || 'Failed to reject payment');
+      }
+      setPaymentActionMessage('Payment rejected. Booking cancelled automatically.');
+      await fetchPendingPayments();
+    } catch (error) {
+      setPaymentActionMessage(error.message);
+    } finally {
+      setProcessingPaymentId('');
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -149,7 +224,6 @@ export function AdminDashboard() {
   };
 
   const totalRevenue = transactions.reduce((s, t) => s + (t.fee || 0), 0);
-
   return (
     <div className="min-h-screen bg-[#F5F5F7] font-['Inter',system-ui,sans-serif]">
       {/* Nav */}
@@ -173,6 +247,12 @@ export function AdminDashboard() {
                   {t}
                 </button>
               ))}
+            </div>
+            <button
+              onClick={() => navigate('/')}
+              className="hidden sm:block text-sm font-medium text-[#86868B] hover:text-[#1D1D1F] px-3 py-1.5">
+              Exit to Site
+            </button>
             </div>
             <button
               onClick={handleLogout}
@@ -200,21 +280,21 @@ export function AdminDashboard() {
         <div className="max-w-7xl mx-auto px-4 mt-4">
           <div className="bg-[#FF3B30]/10 text-[#FF3B30] text-sm px-4 py-3 rounded-xl flex items-center justify-between gap-3">
             <div className="flex items-center gap-2"><AlertCircle className="w-4 h-4 shrink-0" />{error}</div>
-            <button onClick={() => setError('')} className="text-lg font-bold leading-none">×</button>
+            <button onClick={() => setError('')} className="text-lg font-bold leading-none">Ã—</button>
           </div>
         </div>
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        {/* ── OVERVIEW TAB ─────────────────────────────────── */}
+        {/* â”€â”€ OVERVIEW TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {tab === 'Overview' && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               {[
-                { label: 'Total Users', value: loading ? '...' : (userStats?.total ?? '—'), icon: Users, color: '#0071E3' },
-                { label: 'Verified Doctors', value: loading ? '...' : (doctorStats?.verifiedDoctors ?? '—'), icon: Stethoscope, color: '#30D158' },
-                { label: 'Total Appointments', value: loading ? '...' : (doctorStats?.totalAppointments ?? '—'), icon: Calendar, color: '#FF9F0A' },
+                { label: 'Total Users', value: loading ? '...' : (userStats?.total ?? 'â€”'), icon: Users, color: '#0071E3' },
+                { label: 'Verified Doctors', value: loading ? '...' : (doctorStats?.verifiedDoctors ?? 'â€”'), icon: Stethoscope, color: '#30D158' },
+                { label: 'Total Appointments', value: loading ? '...' : (doctorStats?.totalAppointments ?? 'â€”'), icon: Calendar, color: '#FF9F0A' },
                 { label: 'Total Revenue', value: loading ? '...' : `Rs. ${((doctorStats?.totalRevenue) || 0).toLocaleString()}`, icon: TrendingUp, color: '#AF52DE' },
               ].map((stat, i) => (
                 <GlassCard key={i} className="p-5">
@@ -261,11 +341,11 @@ export function AdminDashboard() {
                 <div className="mt-6 grid grid-cols-2 gap-4">
                   <div className="bg-[#F5F5F7] rounded-xl p-4">
                     <p className="text-xs text-[#86868B] mb-1">Active Accounts</p>
-                    <p className="text-xl font-bold text-[#30D158]">{userStats?.active ?? '—'}</p>
+                    <p className="text-xl font-bold text-[#30D158]">{userStats?.active ?? 'â€”'}</p>
                   </div>
                   <div className="bg-[#F5F5F7] rounded-xl p-4">
                     <p className="text-xs text-[#86868B] mb-1">Inactive Accounts</p>
-                    <p className="text-xl font-bold text-[#FF3B30]">{userStats?.inactive ?? '—'}</p>
+                    <p className="text-xl font-bold text-[#FF3B30]">{userStats?.inactive ?? 'â€”'}</p>
                   </div>
                 </div>
               </GlassCard>
@@ -288,7 +368,7 @@ export function AdminDashboard() {
                   <button
                     onClick={() => setTab('Verification')}
                     className="w-full py-2 bg-[#FF9F0A] text-white text-sm font-medium rounded-xl hover:bg-[#E8930A] transition-colors">
-                    Review {pendingCount} Pending →
+                    Review {pendingCount} Pending â†’
                   </button>
                 )}
                 {pendingCount === 0 && (
@@ -301,7 +381,7 @@ export function AdminDashboard() {
           </motion.div>
         )}
 
-        {/* ── USERS TAB ────────────────────────────────────── */}
+        {/* â”€â”€ USERS TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {tab === 'Users' && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <GlassCard className="p-6">
@@ -399,7 +479,7 @@ export function AdminDashboard() {
           </motion.div>
         )}
 
-        {/* ── VERIFICATION TAB ─────────────────────────────── */}
+        {/* â”€â”€ VERIFICATION TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {tab === 'Verification' && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <div className="flex justify-between items-center mb-6">
@@ -432,11 +512,11 @@ export function AdminDashboard() {
                       </div>
                     </div>
                     <div className="space-y-1 mb-4">
-                      {doc.email && <p className="text-xs text-[#86868B]">✉ {doc.email}</p>}
+                      {doc.email && <p className="text-xs text-[#86868B]">âœ‰ {doc.email}</p>}
                       <p className="text-xs text-[#86868B]">
-                        📅 Submitted: {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : 'Unknown'}
+                        ðŸ“… Submitted: {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : 'Unknown'}
                       </p>
-                      <p className="text-xs text-[#FF9F0A] font-medium">⏳ Awaiting verification</p>
+                      <p className="text-xs text-[#FF9F0A] font-medium">â³ Awaiting verification</p>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -457,7 +537,7 @@ export function AdminDashboard() {
           </motion.div>
         )}
 
-        {/* ── TRANSACTIONS TAB ─────────────────────────────── */}
+        {/* â”€â”€ TRANSACTIONS TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {tab === 'Transactions' && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <GlassCard className="p-6">
@@ -515,6 +595,79 @@ export function AdminDashboard() {
                   </tbody>
                 </table>
               </div>
+            </GlassCard>
+          </motion.div>
+        )}
+
+        {/* â”€â”€ PAYMENTS TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {tab === 'Payments' && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <GlassCard className="p-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Payment Verification Queue</h3>
+                  <p className="text-sm text-[#86868B]">Review and approve patient payment slips</p>
+                </div>
+                <button onClick={fetchPendingPayments} className="p-2 rounded-lg hover:bg-[#F5F5F7] border border-[#D2D2D7]/50 transition-colors">
+                  <RefreshCw className="w-4 h-4 text-[#86868B]" />
+                </button>
+              </div>
+
+              {paymentActionMessage && (
+                <p className="text-sm text-[#0071E3] mb-4">{paymentActionMessage}</p>
+              )}
+
+              {loadingPayments ? (
+                <p className="text-sm text-[#86868B] py-4">Loading pending slips...</p>
+              ) : pendingPayments.length === 0 ? (
+                <div className="text-center py-12">
+                  <CheckCircle className="w-12 h-12 text-[#30D158] mx-auto mb-3" />
+                  <p className="font-semibold text-[#1D1D1F] mb-1">All clear!</p>
+                  <p className="text-sm text-[#86868B]">No pending payment slips right now.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {pendingPayments.map((payment) => (
+                    <div key={payment._id} className="bg-[#F5F5F7] rounded-xl p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                        <div>
+                          <p className="font-semibold text-[#1D1D1F]">Appointment #{payment.appointmentId}</p>
+                          <p className="text-xs text-[#86868B]">
+                            Patient: {payment.patientId} â€¢ Doctor: {payment.doctorId || 'N/A'}
+                          </p>
+                        </div>
+                        <StatusBadge status="payment-pending" />
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 text-sm">
+                        <span className="text-[#86868B]">Amount: Rs. {payment.amount || 0}</span>
+                        <a
+                          href={buildSlipUrl(payment?.slip?.publicUrl)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#0071E3] font-medium hover:underline">
+                          View Payment Slip
+                        </a>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleApprove(payment._id)}
+                          disabled={!!processingPaymentId}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#30D158] hover:bg-[#28B44C] disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors">
+                          <CheckCircle className="w-4 h-4" /> Approve
+                        </button>
+                        <button
+                          onClick={() => handleReject(payment._id)}
+                          disabled={!!processingPaymentId}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#FF3B30] hover:bg-[#E03428] disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors">
+                          <XCircle className="w-4 h-4" /> Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </GlassCard>
           </motion.div>
         )}
